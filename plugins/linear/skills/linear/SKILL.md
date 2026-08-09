@@ -2,7 +2,7 @@
 name: linear
 description: Operate Linear as the durable human-agent project system, including project structure, issue creation, sub-issue decomposition, lifecycle state, findings triage, resumable checkpoints, human approvals, Git and PR linkage, and multi-agent coordination. Use for any Linear read or mutation, when deciding whether work belongs in Linear or an agent task system, when planning or executing tracked work, and for any `linear` CLI invocation.
 metadata:
-  version: "2026.4.9"
+  version: "2026.8.1"
 ---
 
 # Linear
@@ -127,6 +127,6 @@ If the answer requires reconstructing an agent's command log, compress the recor
 
 ## Version check
 
-If `linear --version` reports a release newer than `2026.4.9`, use `linear prime` and
+If `linear --version` reports a release newer than `2026.8.1`, use `linear prime` and
 `linear <command> --help` as the live syntax source, then check whether this process
 skill needs a compatibility update.
