@@ -1,6 +1,15 @@
 const commitAnalyzer = require("@semantic-release/commit-analyzer");
 const { computeCalverVersion, isMonthRollover } = require("./calver.cjs");
 
+// semantic-release hardcodes 1.0.0 when a branch has no release tag, and no plugin
+// can override it: plugins receive a deep clone of the release context. Calver cannot
+// parse or continue from 1.0.0 either, so a repository has to be seeded by hand.
+const NO_PRIOR_RELEASE =
+  "calver-plugin: no previous release found on this branch. semantic-release starts " +
+  "an untagged repository at 1.0.0, which is not a calver version. Tag the commit " +
+  "preceding this release with the calver version it shipped as (v<year>.<month>.<patch>, " +
+  "for example v2026.8.0), push the tag, then rerun.";
+
 function mapCalverReleaseType({
   branchName,
   releaseType,
@@ -28,8 +37,12 @@ async function analyzeCommits(pluginConfig, context) {
     context,
   );
 
+  if (releaseType && !context.lastRelease?.version) {
+    throw new Error(NO_PRIOR_RELEASE);
+  }
+
   const branchName = context.branch?.name ?? "main";
-  const lastVersion = context.lastRelease?.version ?? "1970.1.0";
+  const lastVersion = context.lastRelease?.version;
   const nowIso = new Date().toISOString();
 
   const mappedReleaseType = mapCalverReleaseType({
@@ -49,9 +62,13 @@ async function analyzeCommits(pluginConfig, context) {
 }
 
 async function verifyRelease(_, context) {
-  const lastVersion = context.lastRelease?.version ?? "1970.1.0";
+  const lastVersion = context.lastRelease?.version;
   const branchName = context.branch?.name ?? "main";
   const semanticVersion = context.nextRelease?.version;
+
+  if (!lastVersion) {
+    throw new Error(NO_PRIOR_RELEASE);
+  }
 
   if (!semanticVersion) {
     throw new Error("calver-plugin: missing context.nextRelease.version");

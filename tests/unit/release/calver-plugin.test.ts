@@ -109,6 +109,46 @@ describe("calver plugin", () => {
     vi.useRealTimers();
   });
 
+  it("demands a seed tag when the branch has no previous release", async () => {
+    const context = {
+      branch: { name: "main" },
+      commits: [{ message: "feat(labels): add project labels" }],
+      cwd: process.cwd(),
+      env: process.env,
+      logger: { log: vi.fn<(message: string) => void>() },
+      options: {},
+    };
+
+    await expect(
+      analyzeCommits({ preset: "conventionalcommits" }, context),
+    ).rejects.toThrow(/no previous release found/);
+
+    await expect(
+      verifyRelease({}, { ...context, nextRelease: { version: "1.0.0" } }),
+    ).rejects.toThrow(/no previous release found/);
+  });
+
+  it("stays silent on an unreleasable commit set with no previous release", async () => {
+    const context = {
+      branch: { name: "main" },
+      commits: [{ message: "chore(deps): bump lockfile" }],
+      cwd: process.cwd(),
+      env: process.env,
+      logger: { log: vi.fn<(message: string) => void>() },
+      options: {},
+    };
+
+    await expect(
+      analyzeCommits(
+        {
+          preset: "conventionalcommits",
+          releaseRules: [{ type: "chore", release: false }],
+        },
+        context,
+      ),
+    ).resolves.toBeNull();
+  });
+
   it("fails when semantic-release next version diverges from calver", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-20T10:00:00.000Z"));
