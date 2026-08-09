@@ -1,0 +1,36 @@
+{
+  "name": "linear",
+  "version": "2026.4.9",
+  "description": "Agent-first Linear.app CLI with skills and slash commands.",
+  "author": {
+    "name": "Linear CLI maintainers",
+    "url": "https://github.com/HumanInTheLoopReal/linear"
+  },
+  "homepage": "https://github.com/HumanInTheLoopReal/linear",
+  "repository": "https://github.com/HumanInTheLoopReal/linear",
+  "license": "MIT",
+  "keywords": [
+    "linear",
+    "issue-tracker",
+    "task-management",
+    "ai-workflow",
+    "agent-memory"
+  ],
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json",
+  "interface": {
+    "displayName": "Linear",
+    "shortDescription": "Project task tracking with linear",
+    "longDescription": "Use Linear from Codex with CLI-first workflow guidance backed by Linear.app's GraphQL API.",
+    "developerName": "Linear",
+    "category": "Developer Tools",
+    "capabilities": ["Skills", "Task tracking"],
+    "websiteURL": "https://github.com/HumanInTheLoopReal/linear",
+    "defaultPrompt": [
+      "Use $linear to show ready work in this repo.",
+      "Use $linear to claim the top ready task and summarize it.",
+      "Use $linear to create a discovered-from follow-up."
+    ],
+    "brandColor": "#5E6AD2"
+  }
+}

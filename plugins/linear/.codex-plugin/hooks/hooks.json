@@ -1,0 +1,51 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "linear codex-hook SessionStart",
+            "statusMessage": "Loading Linear context"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "manual|auto",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "linear codex-hook PreCompact",
+            "statusMessage": "Checking Linear context"
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "matcher": "manual|auto",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "linear codex-hook PostCompact",
+            "statusMessage": "Scheduling Linear context refresh"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "linear codex-hook UserPromptSubmit",
+            "statusMessage": "Refreshing Linear context"
+          }
+        ]
+      }
+    ]
+  }
+}

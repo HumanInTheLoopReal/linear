@@ -1,0 +1,59 @@
+name: Feature Request
+description: Suggest a new command, flag, or improvement
+labels: ["feature request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea! Linear is opinionated — not every feature fits, but we want to hear your use case.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the use case or pain point. What are you trying to do that's difficult or impossible today?
+      placeholder: When I try to...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How do you think this should work? Include example commands and expected output if possible.
+      placeholder: |
+        linear issues list --assignee me --status "In Progress"
+
+        Expected output:
+        { "nodes": [...], "pageInfo": {...} }
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Have you considered other approaches or workarounds?
+    validations:
+      required: false
+
+  - type: dropdown
+    id: use-case
+    attributes:
+      label: Primary use case
+      options:
+        - Human CLI usage
+        - LLM agent integration
+        - Shell scripting / automation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Anything else — links to Linear API docs, related issues, screenshots.
+    validations:
+      required: false

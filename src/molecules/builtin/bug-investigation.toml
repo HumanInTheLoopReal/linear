@@ -1,0 +1,71 @@
+name = "bug-investigation"
+description = "Investigate, reproduce, fix, and verify a bug end-to-end"
+
+[[variables]]
+name = "symptom"
+description = "Short description of the user-visible symptom"
+
+[[variables]]
+name = "area"
+description = "Suspected code area (best guess; the investigation may move it)"
+
+[[issues]]
+key = "reproduce"
+title = "Reproduce {{symptom}}"
+type = "bug"
+priority = 1
+description = """
+Create a minimal reproduction for {{symptom}}:
+
+- Exact steps from a clean state
+- Inputs, environment, version pinned
+- Expected vs observed output
+- Reproducibility rate (every time? flaky?)
+
+Without a reliable repro, debugging is guessing.
+"""
+
+[[issues]]
+key = "diagnose"
+title = "Diagnose {{symptom}} in {{area}}"
+type = "task"
+priority = 1
+depends_on = ["reproduce"]
+description = """
+Trace the bug to its root cause:
+
+- Where does the data actually diverge from expectation?
+- What invariant is being violated, and why?
+- Why didn't existing tests catch this?
+
+Output: a one-paragraph root-cause writeup the fix step will reference.
+"""
+
+[[issues]]
+key = "fix"
+title = "Fix {{symptom}}"
+type = "bug"
+priority = 1
+depends_on = ["diagnose"]
+description = """
+Apply the smallest fix that addresses the root cause from `diagnose`:
+
+- No drive-by cleanups in the same commit
+- Add a regression test that would have caught the bug
+- Conventional Commits subject: `fix({{area}}): ...`
+"""
+
+[[issues]]
+key = "verify"
+title = "Verify {{symptom}} is fixed"
+type = "task"
+priority = 1
+depends_on = ["fix"]
+description = """
+Confirm the fix:
+
+- Re-run the repro from step 1 → no longer reproduces
+- All four CI gates pass
+- Run any related smoke tests to catch unintended fallout
+- If user-reported: notify the reporter with the resolution
+"""

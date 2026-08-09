@@ -1,0 +1,15 @@
+{
+  "name": "linear-marketplace",
+  "description": "Local marketplace for linear plugin development",
+  "owner": {
+    "name": "Linear CLI maintainers"
+  },
+  "plugins": [
+    {
+      "name": "linear",
+      "source": "./plugins/linear",
+      "description": "AI-supervised CLI for Linear.app. Manage issues, discover work, recover context after compaction.",
+      "version": "2026.4.9"
+    }
+  ]
+}

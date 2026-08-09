@@ -1,0 +1,67 @@
+name = "feature-with-tests"
+description = "Ship a new feature with tests + docs: spec → impl → tests → docs"
+
+[[variables]]
+name = "feature"
+description = "Short feature name (becomes the issue suffix)"
+
+[[variables]]
+name = "area"
+description = "Codebase area the feature lives in (e.g. issues, comments, hooks)"
+
+[[issues]]
+key = "spec"
+title = "Spec {{feature}}"
+type = "task"
+priority = 2
+description = """
+Write a short spec for {{feature}}:
+
+- User story: who needs this, why now
+- Acceptance criteria: 3–5 bullets a reviewer can check
+- Out-of-scope: things this feature deliberately doesn't do
+- Open questions: what we need to decide before writing code
+"""
+
+[[issues]]
+key = "impl"
+title = "Implement {{feature}} in {{area}}"
+type = "feature"
+priority = 2
+depends_on = ["spec"]
+description = """
+Implement {{feature}} per the spec. Keep diffs small:
+
+- Code lives in src/{{area}}/ (per project convention)
+- Layer separation: resolver → service → command
+- No `any` types; explicit return types
+- Run check:ci + tsc + test + build before every commit
+"""
+
+[[issues]]
+key = "tests"
+title = "Test {{feature}}"
+type = "task"
+priority = 2
+depends_on = ["impl"]
+description = """
+Cover {{feature}} with unit tests:
+
+- Happy path + primary error case per exported function
+- Mock one layer deep (per testing.md)
+- Integration test if the feature spans multiple commands
+"""
+
+[[issues]]
+key = "docs"
+title = "Document {{feature}}"
+type = "task"
+priority = 3
+depends_on = ["tests"]
+description = """
+Add documentation for {{feature}}:
+
+- README.md example (if it's a user-facing verb)
+- DomainMeta export so it shows up in `linear usage`
+- USAGE.md regenerates via `npm run generate:usage`
+"""

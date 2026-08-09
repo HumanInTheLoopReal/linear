@@ -1,0 +1,112 @@
+# ------------------------------------------------------------
+# Issue history events for `linear issues history`.
+#
+# Linear's IssueHistory is event-centric (one node per change).
+# We surface the delta
+# fields the catalog explicitly calls out (state / priority /
+# title / assignee / labels / parent) plus identity (actor,
+# createdAt) so consumers can reconstruct a timeline.
+# ------------------------------------------------------------
+
+fragment IssueHistoryEventFields on IssueHistory {
+  id
+  createdAt
+  updatedDescription
+  actor {
+    id
+    name
+    displayName
+    email
+  }
+  fromState {
+    id
+    name
+    type
+  }
+  toState {
+    id
+    name
+    type
+  }
+  fromPriority
+  toPriority
+  fromTitle
+  toTitle
+  fromAssignee {
+    id
+    name
+    displayName
+  }
+  toAssignee {
+    id
+    name
+    displayName
+  }
+  fromParent {
+    id
+    identifier
+    title
+  }
+  toParent {
+    id
+    identifier
+    title
+  }
+  addedLabels {
+    id
+    name
+  }
+  removedLabels {
+    id
+    name
+  }
+  # Relationship changes (dependency add/remove). Linear records these as a
+  # distinct payload rather than from/to scalars, so without this an agent's
+  # `depends add/remove` shows up as an event with "no field deltas". (lin-8yl1.8)
+  relationChanges {
+    identifier
+    type
+  }
+  # Archive toggles, estimate / due-date / cycle / project moves — surfaced so
+  # these transitions render real deltas instead of "(no field deltas)".
+  archived
+  fromEstimate
+  toEstimate
+  fromDueDate
+  toDueDate
+  fromCycle {
+    id
+    name
+    number
+  }
+  toCycle {
+    id
+    name
+    number
+  }
+  fromProject {
+    id
+    name
+  }
+  toProject {
+    id
+    name
+  }
+}
+
+query GetIssueHistory($id: String!, $first: Int = 100, $after: String) {
+  issue(id: $id) {
+    id
+    identifier
+    title
+    history(first: $first, after: $after) {
+      nodes {
+        ...IssueHistoryEventFields
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+}

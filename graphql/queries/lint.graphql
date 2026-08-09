@@ -1,0 +1,49 @@
+# ------------------------------------------------------------
+# Lean issue queries for `linear issues lint`.
+#
+# Backs the template-section validator — we only need id/title/
+# description plus the `type:*` label to derive issue type.
+# ------------------------------------------------------------
+
+fragment IssueLintFields on Issue {
+  id
+  identifier
+  title
+  description
+  labels {
+    nodes {
+      id
+      name
+    }
+  }
+}
+
+query ListIssuesForLint(
+  $first: Int = 100
+  $after: String
+  $filter: IssueFilter
+) {
+  issues(first: $first, after: $after, filter: $filter) {
+    nodes {
+      ...IssueLintFields
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+query GetIssueForLint($id: String!) {
+  issue(id: $id) {
+    ...IssueLintFields
+  }
+}
+
+query GetIssueByIdentifierForLint($filter: IssueFilter) {
+  issues(first: 1, filter: $filter) {
+    nodes {
+      ...IssueLintFields
+    }
+  }
+}

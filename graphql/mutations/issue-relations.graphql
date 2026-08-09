@@ -1,0 +1,115 @@
+# ------------------------------------------------------------
+# GraphQL operations for issue relation management
+# ------------------------------------------------------------
+
+# Fragment for relation fields used in issue output
+fragment IssueRelationFields on IssueRelation {
+  id
+  type
+  issue {
+    id
+    identifier
+    title
+  }
+  relatedIssue {
+    id
+    identifier
+    title
+  }
+}
+
+# Fragment for inverse relation fields used in issue output
+fragment InverseIssueRelationFields on IssueRelation {
+  id
+  type
+  issue {
+    id
+    identifier
+  }
+}
+
+# Create a relation between two issues
+mutation CreateIssueRelation($input: IssueRelationCreateInput!) {
+  issueRelationCreate(input: $input) {
+    success
+    issueRelation {
+      ...IssueRelationFields
+    }
+  }
+}
+
+# Delete a relation by ID
+mutation DeleteIssueRelation($id: String!) {
+  issueRelationDelete(id: $id) {
+    success
+    entityId
+  }
+}
+
+# Find relations between a specific issue and another issue
+# Used by --remove-relation to locate the relation ID before deletion
+query GetIssueRelations($issueId: String!) {
+  issue(id: $issueId) {
+    relations {
+      nodes {
+        ...IssueRelationFields
+      }
+    }
+    inverseRelations {
+      nodes {
+        ...InverseIssueRelationFields
+      }
+    }
+  }
+}
+
+# Enriched relation list with related-issue summary (title, priority, state)
+# Used by `linear depends list`.
+fragment DependsRelationFields on IssueRelation {
+  id
+  type
+  relatedIssue {
+    id
+    identifier
+    title
+    priority
+    state {
+      id
+      name
+      type
+    }
+  }
+}
+
+fragment DependsInverseRelationFields on IssueRelation {
+  id
+  type
+  issue {
+    id
+    identifier
+    title
+    priority
+    state {
+      id
+      name
+      type
+    }
+  }
+}
+
+query ListIssueRelations($issueId: String!) {
+  issue(id: $issueId) {
+    id
+    identifier
+    relations {
+      nodes {
+        ...DependsRelationFields
+      }
+    }
+    inverseRelations {
+      nodes {
+        ...DependsInverseRelationFields
+      }
+    }
+  }
+}

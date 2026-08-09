@@ -1,0 +1,38 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":disableDependencyDashboard"],
+  "minimumReleaseAge": "3 days",
+  "prConcurrentLimit": 5,
+  "schedule": ["before 9am on monday"],
+  "packageRules": [
+    {
+      "description": "Production deps: pin exact versions, individual PRs for major",
+      "matchDepTypes": ["dependencies"],
+      "rangeStrategy": "pin"
+    },
+    {
+      "description": "Group production minor+patch updates",
+      "matchDepTypes": ["dependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "production dependencies (non-major)"
+    },
+    {
+      "description": "Group dev minor+patch updates",
+      "matchDepTypes": ["devDependencies"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "dev dependencies (non-major)"
+    },
+    {
+      "description": "Group GitHub Actions updates",
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions"
+    },
+    {
+      "description": "Pin release-publish workflow to minimum supported Node version",
+      "matchManagers": ["github-actions"],
+      "matchPackageNames": ["node"],
+      "matchFileNames": [".github/workflows/release-publish.yml"],
+      "enabled": false
+    }
+  ]
+}

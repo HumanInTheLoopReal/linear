@@ -1,0 +1,210 @@
+name: Validate CI
+
+on:
+  pull_request:
+    branches:
+      - next
+      - main
+    types:
+      - opened
+      - synchronize
+      - ready_for_review
+      - reopened
+      - edited
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Run Unit Tests on Node v${{ matrix.node-version }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [22]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup node v${{ matrix.node-version }}
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Run tokenless CLI integration smoke tests
+        run: npm run test:integration:smoke
+
+      - name: Enforce executed CLI command coverage
+        run: npm run test:commands
+
+  lint:
+    strategy:
+      matrix:
+        node-version: [22]
+
+    name: Run Code Checks on Node v${{ matrix.node-version }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup node v${{ matrix.node-version }}
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: Biome check
+        run: npm run check:ci
+
+      - name: TypeScript type check
+        run: npx tsc --noEmit
+
+  commitlint:
+    name: Validate Commit Messages
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup node v22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: "npm"
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Validate PR commit range
+        run: |
+          npx commitlint \
+            --from "${{ github.event.pull_request.base.sha }}" \
+            --to "${{ github.event.pull_request.head.sha }}" \
+            --verbose
+
+  smoke-test:
+    name: Run Package Install Smoke Test
+    runs-on: ubuntu-latest
+    needs: [test]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: "npm"
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Verify packed binaries
+        run: npm run verify:packed-binaries
+
+  guard-plan-files:
+    name: Reject Plan Files
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Check for docs/plans/*.md in branch history
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          base_ref="origin/${GITHUB_BASE_REF:-main}"
+          plan_files=$(git log "$base_ref"..HEAD \
+            --diff-filter=A --name-only --pretty=format: \
+            -- 'docs/plans/*.md' | sed '/^$/d')
+
+          if [ -n "$plan_files" ]; then
+            echo "::error::Found plan files in branch history"
+
+            printf '%s\n' \
+              '<!-- linear:guard-plan-files -->' \
+              '' \
+              '> [!WARNING]' \
+              '> Found `docs/plans/*.md` files in this branch'"'"'s history.' \
+              '>' \
+              '> Plan files in `docs/plans/` are working artifacts created by AI agents during the design phase. Once the implementation they describe is complete and the PR is ready for review, these files serve no further purpose — they are not reference docs, not changelogs, and not part of the shipped project.' \
+              '>' \
+              '> Leaving them in the commit history would add noise and suggest unresolved or incomplete work.' \
+              '>' \
+              '> **Remove them by rebasing and dropping the commits that introduced them:**' \
+              '> ```bash' \
+              '> git rebase -i main' \
+              '> # drop the commits that added docs/plans/*.md, then force-push' \
+              '> git push --force-with-lease' \
+              '> ```' \
+            | gh pr comment ${{ github.event.pull_request.number }} --body-file -
+
+            exit 1
+          fi
+          echo "No plan files found — OK"
+
+  guard-changelog-history:
+    name: Guard CHANGELOG History in PR
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Detect CHANGELOG.md in branch history
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${GITHUB_HEAD_REF:-}" = "next" ] && [ "${GITHUB_BASE_REF:-}" = "main" ]; then
+            echo "Promotion PR next -> main detected. Skipping changelog history guard."
+            exit 0
+          fi
+
+          base_ref="origin/${GITHUB_BASE_REF:-main}"
+          output=$(git log "$base_ref"..HEAD --name-status --pretty=format: -- CHANGELOG.md | sed '/^$/d')
+
+          if [ -n "$output" ]; then
+            echo "::error::CHANGELOG.md is release-workflow-owned and must not appear in PR branch history"
+            echo "Drop or amend commits that touch CHANGELOG.md, then push with --force-with-lease"
+            echo
+            echo "$output"
+            exit 1
+          fi
+
+          echo "No CHANGELOG.md history violations — OK"

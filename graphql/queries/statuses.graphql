@@ -1,0 +1,44 @@
+# ------------------------------------------------------------
+# GraphQL queries for Linear workflow states (statuses).
+#
+# Workflow states are per-team. Each state has a `type` from a fixed
+# set (`triage`, `backlog`, `unstarted`, `started`, `completed`,
+# `canceled`, `duplicate`) plus a team-defined `name`. Used by
+# `linear issues statuses` to enumerate the valid set.
+# ------------------------------------------------------------
+
+fragment WorkflowStateFields on WorkflowState {
+  id
+  name
+  type
+  color
+  description
+  position
+  team {
+    id
+    key
+    name
+  }
+}
+
+# List all workflow states, optionally filtered to one team.
+#
+# Variables:
+#   $first: page size (default: 100)
+#   $after: pagination cursor
+#   $filter: optional WorkflowStateFilter (e.g. team scoping)
+query ListWorkflowStates(
+  $first: Int = 100
+  $after: String
+  $filter: WorkflowStateFilter
+) {
+  workflowStates(first: $first, after: $after, filter: $filter) {
+    nodes {
+      ...WorkflowStateFields
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}

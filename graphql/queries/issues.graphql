@@ -1,0 +1,1661 @@
+# ------------------------------------------------------------
+# Optimized GraphQL queries for issue operations
+#
+# This module contains highly optimized GraphQL queries that fetch
+# all necessary issue data in single requests, eliminating N+1 query
+# problem common with Linear SDK. Each query uses comprehensive
+# fragments to ensure consistent data structures.
+# ------------------------------------------------------------
+
+# Complete issue fragment with all relationships
+#
+# Combines all issue fragments into a comprehensive field selection.
+# This is used when full issue details are needed including all
+# relationships (state, assignee, team, project, labels, comments).
+fragment CompleteIssueFields on Issue {
+  id
+  identifier
+  title
+  description
+  branchName
+  priority
+  estimate
+  dueDate
+  createdAt
+  updatedAt
+  completedAt
+  state {
+    id
+    name
+    type
+  }
+  assignee {
+    id
+    name
+  }
+  team {
+    id
+    key
+    name
+  }
+  project {
+    id
+    name
+  }
+  labels {
+    nodes {
+      id
+      name
+    }
+  }
+  cycle {
+    id
+    name
+    number
+  }
+  projectMilestone {
+    id
+    name
+    targetDate
+  }
+  parent {
+    id
+    identifier
+    title
+    priority
+    state {
+      type
+      name
+    }
+    labels {
+      nodes {
+        name
+      }
+    }
+  }
+  children {
+    nodes {
+      id
+      identifier
+      title
+      priority
+      state {
+        type
+        name
+      }
+      labels {
+        nodes {
+          name
+        }
+      }
+    }
+  }
+  relations {
+    nodes {
+      id
+      type
+      relatedIssue {
+        id
+        identifier
+        title
+        priority
+        state {
+          type
+          name
+        }
+        labels {
+          nodes {
+            name
+          }
+        }
+      }
+    }
+  }
+  inverseRelations {
+    nodes {
+      id
+      type
+      issue {
+        id
+        identifier
+        title
+        priority
+        state {
+          type
+          name
+        }
+        labels {
+          nodes {
+            name
+          }
+        }
+      }
+    }
+  }
+}
+
+# Epic-status fragment: parent issue summary with children state-types embedded.
+# Used by `linear issues epic-status` / `close-eligible-epics` to compute
+# completion progress client-side.
+fragment EpicStatusFields on Issue {
+  id
+  identifier
+  title
+  priority
+  state {
+    id
+    name
+    type
+  }
+  team {
+    id
+    key
+    name
+  }
+  children {
+    nodes {
+      id
+      identifier
+      state {
+        id
+        type
+      }
+    }
+  }
+}
+
+query GetEpicCandidates($filter: IssueFilter, $first: Int!, $after: String) {
+  issues(filter: $filter, first: $first, after: $after) {
+    nodes {
+      ...EpicStatusFields
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+# Lean fragment for content-hash duplicate detection: only the fields needed
+# to compare (title + description), score (relation counts), and re-parent
+# children during a merge.
+fragment DuplicateDetectionFields on Issue {
+  id
+  identifier
+  title
+  description
+  priority
+  state {
+    id
+    name
+    type
+  }
+  team {
+    id
+    key
+    name
+  }
+  parent {
+    id
+    identifier
+  }
+  children {
+    nodes {
+      id
+      identifier
+    }
+  }
+  relations {
+    nodes {
+      id
+      type
+      relatedIssue {
+        id
+        identifier
+        title
+      }
+    }
+  }
+  inverseRelations {
+    nodes {
+      id
+      type
+      issue {
+        id
+        identifier
+        title
+      }
+    }
+  }
+}
+
+query GetIssuesForDuplicateDetection(
+  $filter: IssueFilter
+  $first: Int!
+  $after: String
+) {
+  issues(filter: $filter, first: $first, after: $after) {
+    nodes {
+      ...DuplicateDetectionFields
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+# Graph-node fields used by `depends graph` for both root expansion and
+# whole-workspace scans. Includes typed relations + inverseRelations so the
+# service can normalize them into directed (blocker -> blocked) edges.
+# `children` is here so `depends tree` can walk into an epic's children
+# (their blockers are the epic's effective downstream chain).
+fragment GraphNodeFields on Issue {
+  id
+  identifier
+  title
+  priority
+  state {
+    id
+    name
+    type
+  }
+  team {
+    id
+    key
+    name
+  }
+  parent {
+    id
+    identifier
+  }
+  children {
+    nodes {
+      id
+      identifier
+    }
+  }
+  relations {
+    nodes {
+      id
+      type
+      relatedIssue {
+        id
+        identifier
+      }
+    }
+  }
+  inverseRelations {
+    nodes {
+      id
+      type
+      issue {
+        id
+        identifier
+      }
+    }
+  }
+}
+
+query GetIssueGraphNode($id: String!) {
+  issue(id: $id) {
+    ...GraphNodeFields
+  }
+}
+
+query GetOpenIssuesForGraph(
+  $filter: IssueFilter
+  $first: Int!
+  $after: String
+) {
+  issues(filter: $filter, first: $first, after: $after) {
+    nodes {
+      ...GraphNodeFields
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+# Issue fields needed by `swarm create` / `swarm validate`: enough to identify
+# the epic, enumerate its children, and read each child's blocks-relations
+# (which power the in-epic dependency graph used for wave computation).
+fragment SwarmIssueFields on Issue {
+  id
+  identifier
+  title
+  description
+  priority
+  state {
+    id
+    name
+    type
+  }
+  team {
+    id
+    key
+    name
+  }
+  parent {
+    id
+    identifier
+  }
+  children {
+    nodes {
+      id
+      identifier
+      title
+      priority
+      assignee {
+        id
+        name
+        email
+      }
+      state {
+        id
+        name
+        type
+      }
+      completedAt
+      canceledAt
+      relations {
+        nodes {
+          id
+          type
+          relatedIssue {
+            id
+            identifier
+          }
+        }
+      }
+    }
+  }
+  labels {
+    nodes {
+      id
+      name
+    }
+  }
+  relations {
+    nodes {
+      id
+      type
+      relatedIssue {
+        id
+        identifier
+      }
+    }
+  }
+  inverseRelations {
+    nodes {
+      id
+      type
+      issue {
+        id
+        identifier
+      }
+    }
+  }
+}
+
+query GetIssueForSwarm($id: String!) {
+  issue(id: $id) {
+    ...SwarmIssueFields
+  }
+}
+
+# Lean fields for finding existing swarm molecules: only what we need to
+# verify the label and relation back to the source epic.
+fragment SwarmCandidateFields on Issue {
+  id
+  identifier
+  title
+  description
+  labels {
+    nodes {
+      id
+      name
+    }
+  }
+  relations {
+    nodes {
+      id
+      type
+      relatedIssue {
+        id
+        identifier
+      }
+    }
+  }
+}
+
+query FindSwarmsByLabel($filter: IssueFilter, $first: Int!, $after: String) {
+  issues(filter: $filter, first: $first, after: $after) {
+    nodes {
+      ...SwarmCandidateFields
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+# Fields needed to render a `linear:gate` issue: identifier, state, team, and
+# the full description so we can parse the `await_type`/`await_id`/timeout
+# key-value block stored as plain markdown.
+fragment GateIssueFields on Issue {
+  id
+  identifier
+  title
+  description
+  priority
+  state {
+    id
+    name
+    type
+  }
+  team {
+    id
+    key
+    name
+  }
+  createdAt
+  updatedAt
+  labels {
+    nodes {
+      id
+      name
+    }
+  }
+}
+
+query GetGates($filter: IssueFilter, $first: Int!, $after: String) {
+  issues(filter: $filter, first: $first, after: $after) {
+    nodes {
+      ...GateIssueFields
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+# Fields for the `blocked` view: an issue plus its inverse blocks-relations.
+# inverseRelations[type=blocks].issue is the BLOCKER (Linear's forward
+# `blocks` edge lives on the blocker, so we look at inverse-relations from
+# the perspective of the blocked issue).
+fragment BlockedIssueFields on Issue {
+  id
+  identifier
+  title
+  priority
+  state {
+    id
+    name
+    type
+  }
+  team {
+    id
+    key
+    name
+  }
+  parent {
+    id
+    identifier
+  }
+  inverseRelations {
+    nodes {
+      id
+      type
+      issue {
+        id
+        identifier
+        title
+        state {
+          id
+          name
+          type
+        }
+      }
+    }
+  }
+}
+
+query GetIssuesForBlockedReport(
+  $filter: IssueFilter
+  $first: Int!
+  $after: String
+) {
+  issues(filter: $filter, first: $first, after: $after) {
+    nodes {
+      ...BlockedIssueFields
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+# Lean fields for capability-shipping: identifier, state (to gate on
+# completion), team (to scope label creation), and current labels (to
+# detect already-shipped and to merge the new label on update).
+fragment ShipCandidateFields on Issue {
+  id
+  identifier
+  title
+  state {
+    id
+    name
+    type
+  }
+  team {
+    id
+    key
+    name
+  }
+  labels {
+    nodes {
+      id
+      name
+    }
+  }
+}
+
+query FindIssuesByLabelName($name: String!, $first: Int!, $after: String) {
+  issues(
+    filter: { labels: { name: { eq: $name } } }
+    first: $first
+    after: $after
+  ) {
+    nodes {
+      ...ShipCandidateFields
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+# Minimal comment fields preserved for default issue reads
+fragment IssueReadDefaultCommentFields on Comment {
+  id
+  body
+}
+
+# Comment fields for issue read discussion expansion
+fragment IssueReadCommentFields on Comment {
+  id
+  body
+  createdAt
+  editedAt
+  parentId
+  user {
+    id
+    displayName
+  }
+}
+
+# Complete issue fragment with all relationships and default comments
+#
+# Preserves the historical issue read payload while keeping richer
+# discussion metadata behind explicit flags.
+fragment CompleteIssueWithDefaultCommentsFields on Issue {
+  ...CompleteIssueFields
+  comments {
+    nodes {
+      ...IssueReadDefaultCommentFields
+    }
+  }
+}
+
+# Complete issue fragment with all relationships and comments
+#
+# Combines all issue fragments into a comprehensive field selection.
+# This is used when full issue details are needed including all
+# relationships (state, assignee, team, project, labels, comments).
+fragment CompleteIssueWithCommentsFields on Issue {
+  ...CompleteIssueFields
+  comments {
+    nodes {
+      ...IssueReadCommentFields
+    }
+  }
+}
+
+# Complete issue fragment with all relationships, default comments, and reactions
+fragment CompleteIssueWithReactionsFields on Issue {
+  ...CompleteIssueWithDefaultCommentsFields
+  reactions {
+    ...ReactionReadFields
+  }
+}
+
+# Complete issue search fragment with all relationships
+#
+# Combines all issue fragments into a comprehensive field selection.
+# This is used when full issue details are needed including all
+# relationships (state, assignee, team, project, labels, comments).
+fragment CompleteIssueSearchFields on IssueSearchResult {
+  id
+  identifier
+  title
+  description
+  branchName
+  priority
+  estimate
+  dueDate
+  createdAt
+  updatedAt
+  state {
+    id
+    name
+    type
+  }
+  assignee {
+    id
+    name
+  }
+  team {
+    id
+    key
+    name
+  }
+  project {
+    id
+    name
+  }
+  labels {
+    nodes {
+      id
+      name
+    }
+  }
+  cycle {
+    id
+    name
+    number
+  }
+  projectMilestone {
+    id
+    name
+    targetDate
+  }
+  parent {
+    id
+    identifier
+    title
+    priority
+    state {
+      type
+      name
+    }
+    labels {
+      nodes {
+        name
+      }
+    }
+  }
+  children {
+    nodes {
+      id
+      identifier
+      title
+      priority
+      state {
+        type
+        name
+      }
+      labels {
+        nodes {
+          name
+        }
+      }
+    }
+  }
+  relations {
+    nodes {
+      id
+      type
+      relatedIssue {
+        id
+        identifier
+        title
+        priority
+        state {
+          type
+          name
+        }
+        labels {
+          nodes {
+            name
+          }
+        }
+      }
+    }
+  }
+  inverseRelations {
+    nodes {
+      id
+      type
+      issue {
+        id
+        identifier
+        title
+        priority
+        state {
+          type
+          name
+        }
+        labels {
+          nodes {
+            name
+          }
+        }
+      }
+    }
+  }
+}
+
+# Get issues list with all relationships in single query
+#
+# Fetches paginated issues excluding completed ones,
+# ordered by most recently updated. Includes all relationships
+# for comprehensive issue data.
+query GetIssues($first: Int!, $after: String, $orderBy: PaginationOrderBy) {
+  issues(
+    first: $first
+    after: $after
+    orderBy: $orderBy
+    filter: { state: { type: { neq: "completed" } } }
+  ) {
+    nodes {
+      ...CompleteIssueFields
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+# Get single issue by UUID with lean fields
+#
+# Fetches issue data by direct UUID lookup with the backward-compatible
+# default comment payload.
+query GetIssueById($id: String!) {
+  issue(id: $id) {
+    ...CompleteIssueWithDefaultCommentsFields
+  }
+}
+
+# Get issue by identifier (team key + number) with lean fields
+#
+# Fetches issue using TEAM-123 format with the backward-compatible
+# default comment payload.
+query GetIssueByIdentifier($teamKey: String!, $number: Float!) {
+  issues(
+    filter: { team: { key: { eq: $teamKey } }, number: { eq: $number } }
+    first: 1
+  ) {
+    nodes {
+      ...CompleteIssueWithDefaultCommentsFields
+    }
+  }
+}
+
+# Get single issue by UUID with full comments
+query GetIssueByIdWithComments($id: String!) {
+  issue(id: $id) {
+    ...CompleteIssueWithCommentsFields
+  }
+}
+
+# Get issue by identifier with full comments
+query GetIssueByIdentifierWithComments($teamKey: String!, $number: Float!) {
+  issues(
+    filter: { team: { key: { eq: $teamKey } }, number: { eq: $number } }
+    first: 1
+  ) {
+    nodes {
+      ...CompleteIssueWithCommentsFields
+    }
+  }
+}
+
+# Get single issue by UUID with root reactions
+query GetIssueByIdWithReactions($id: String!) {
+  issue(id: $id) {
+    ...CompleteIssueWithReactionsFields
+  }
+}
+
+# Get issue by identifier with root reactions
+query GetIssueByIdentifierWithReactions($teamKey: String!, $number: Float!) {
+  issues(
+    filter: { team: { key: { eq: $teamKey } }, number: { eq: $number } }
+    first: 1
+  ) {
+    nodes {
+      ...CompleteIssueWithReactionsFields
+    }
+  }
+}
+
+# Get issue team by issue ID
+#
+# Fetches the team associated with an issue by its ID.
+query GetIssueTeam($issueId: String!) {
+  issue(id: $issueId) {
+    team {
+      id
+    }
+  }
+}
+
+# Search issues with text search and all relationships in single query
+#
+# Provides full-text search across Linear issues with complete
+# relationship data for each match.
+query SearchIssues(
+  $term: String!
+  $first: Int!
+  $after: String
+  $filter: IssueFilter
+) {
+  searchIssues(
+    term: $term
+    first: $first
+    after: $after
+    filter: $filter
+    includeArchived: false
+  ) {
+    nodes {
+      ...CompleteIssueSearchFields
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+# Search issues with advanced filters and all relationships in single query
+#
+# Supports filtering by team, assignee, project, and states.
+# Used by the advanced search functionality with multiple criteria.
+query FilteredSearchIssues(
+  $first: Int!
+  $after: String
+  $filter: IssueFilter
+  $orderBy: PaginationOrderBy
+  $includeArchived: Boolean
+) {
+  issues(
+    first: $first
+    after: $after
+    filter: $filter
+    orderBy: $orderBy
+    includeArchived: $includeArchived
+  ) {
+    nodes {
+      ...CompleteIssueFields
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+# Comprehensive batch resolve for update operations
+#
+# Resolves all necessary entity references in a single batch query
+# before issue update.
+query BatchResolveForUpdate(
+  $assigneeQuery: String
+  $projectName: String
+  $projectId: ID
+  $labelNames: [String!]
+  $statusName: String
+  $cycleName: String
+  $teamKey: String
+  $teamId: ID
+  $milestoneName: String
+  $parentTeamKey: String
+  $parentIssueNumber: Float
+) {
+  assignees: users(
+    filter: {
+      or: [
+        { displayName: { eqIgnoreCase: $assigneeQuery } }
+        { email: { eqIgnoreCase: $assigneeQuery } }
+      ]
+    }
+    first: 10
+  ) {
+    nodes {
+      id
+      name
+      email
+      displayName
+    }
+  }
+
+  projects(
+    filter: {
+      or: [{ name: { eqIgnoreCase: $projectName } }, { id: { eq: $projectId } }]
+    }
+    first: 10
+  ) {
+    nodes {
+      id
+      name
+      projectMilestones(
+        filter: { name: { eqIgnoreCase: $milestoneName } }
+        first: 10
+      ) {
+        nodes {
+          id
+          name
+        }
+      }
+    }
+  }
+
+  labels: issueLabels(filter: { name: { in: $labelNames } }) {
+    nodes {
+      id
+      name
+    }
+  }
+
+  statuses: workflowStates(
+    filter: {
+      and: [
+        { name: { eqIgnoreCase: $statusName } }
+        {
+          or: [
+            { team: { key: { eq: $teamKey } } }
+            { team: { id: { eq: $teamId } } }
+          ]
+        }
+      ]
+    }
+    first: 10
+  ) {
+    nodes {
+      id
+      name
+      team {
+        id
+        key
+      }
+    }
+  }
+
+  cycles(
+    filter: {
+      and: [
+        { name: { eq: $cycleName } }
+        {
+          or: [
+            { team: { key: { eq: $teamKey } } }
+            { team: { id: { eq: $teamId } } }
+          ]
+        }
+      ]
+    }
+    first: 10
+  ) {
+    nodes {
+      id
+      name
+      isActive
+      isNext
+      isPrevious
+      number
+      startsAt
+      team {
+        id
+        key
+      }
+    }
+  }
+
+  parentIssues: issues(
+    filter: {
+      and: [
+        { team: { key: { eq: $parentTeamKey } } }
+        { number: { eq: $parentIssueNumber } }
+      ]
+    }
+    first: 1
+  ) {
+    nodes {
+      id
+      identifier
+    }
+  }
+}
+
+# Comprehensive batch resolve for create operations
+#
+# Resolves all entity references needed for issue creation in a single
+# batch query.
+query BatchResolveForCreate(
+  $teamKey: String
+  $teamName: String
+  $teamId: ID
+  $assigneeQuery: String
+  $projectName: String
+  $projectId: ID
+  $labelNames: [String!]
+  $statusName: String
+  $cycleName: String
+  $milestoneName: String
+  $parentTeamKey: String
+  $parentIssueNumber: Float
+) {
+  teams(
+    filter: { or: [{ key: { eq: $teamKey } }, { name: { eq: $teamName } }] }
+    first: 10
+  ) {
+    nodes {
+      id
+      key
+      name
+    }
+  }
+
+  assignees: users(
+    filter: {
+      or: [
+        { displayName: { eqIgnoreCase: $assigneeQuery } }
+        { email: { eqIgnoreCase: $assigneeQuery } }
+      ]
+    }
+    first: 10
+  ) {
+    nodes {
+      id
+      name
+      email
+      displayName
+    }
+  }
+
+  projects(
+    filter: {
+      or: [{ name: { eqIgnoreCase: $projectName } }, { id: { eq: $projectId } }]
+    }
+    first: 10
+  ) {
+    nodes {
+      id
+      name
+      projectMilestones(
+        filter: { name: { eqIgnoreCase: $milestoneName } }
+        first: 10
+      ) {
+        nodes {
+          id
+          name
+        }
+      }
+    }
+  }
+
+  labels: issueLabels(filter: { name: { in: $labelNames } }) {
+    nodes {
+      id
+      name
+    }
+  }
+
+  statuses: workflowStates(
+    filter: {
+      and: [
+        { name: { eqIgnoreCase: $statusName } }
+        {
+          or: [
+            { team: { key: { eq: $teamKey } } }
+            { team: { name: { eq: $teamName } } }
+            { team: { id: { eq: $teamId } } }
+          ]
+        }
+      ]
+    }
+    first: 10
+  ) {
+    nodes {
+      id
+      name
+      team {
+        id
+        key
+      }
+    }
+  }
+
+  cycles(
+    filter: {
+      and: [
+        { name: { eq: $cycleName } }
+        {
+          or: [
+            { team: { key: { eq: $teamKey } } }
+            { team: { name: { eq: $teamName } } }
+            { team: { id: { eq: $teamId } } }
+          ]
+        }
+      ]
+    }
+    first: 10
+  ) {
+    nodes {
+      id
+      name
+      isActive
+      isNext
+      isPrevious
+      number
+      startsAt
+      team {
+        id
+        key
+      }
+    }
+  }
+
+  parentIssues: issues(
+    filter: {
+      and: [
+        { team: { key: { eq: $parentTeamKey } } }
+        { number: { eq: $parentIssueNumber } }
+      ]
+    }
+    first: 1
+  ) {
+    nodes {
+      id
+      identifier
+    }
+  }
+}
+
+query BatchResolveForSearch(
+  $teamKey: String
+  $teamName: String
+  $teamId: ID
+  $assigneeQuery: String
+  $creatorQuery: String
+  $projectName: String
+  $projectId: ID
+  $labelNames: [String!]
+  $cycleName: String
+  $parentTeamKey: String
+  $parentIssueNumber: Float
+  $milestoneName: String
+) {
+  teams(
+    filter: { or: [{ key: { eq: $teamKey } }, { name: { eq: $teamName } }] }
+    first: 10
+  ) {
+    nodes {
+      id
+      key
+      name
+    }
+  }
+
+  assignees: users(
+    filter: {
+      or: [
+        { displayName: { eqIgnoreCase: $assigneeQuery } }
+        { email: { eqIgnoreCase: $assigneeQuery } }
+      ]
+    }
+    first: 10
+  ) {
+    nodes {
+      id
+      name
+      email
+      displayName
+    }
+  }
+
+  creators: users(
+    filter: {
+      or: [
+        { displayName: { eqIgnoreCase: $creatorQuery } }
+        { email: { eqIgnoreCase: $creatorQuery } }
+      ]
+    }
+    first: 10
+  ) {
+    nodes {
+      id
+      name
+      email
+      displayName
+    }
+  }
+
+  projects(
+    filter: {
+      or: [{ name: { eqIgnoreCase: $projectName } }, { id: { eq: $projectId } }]
+    }
+    first: 10
+  ) {
+    nodes {
+      id
+      name
+      projectMilestones(
+        filter: { name: { eqIgnoreCase: $milestoneName } }
+        first: 10
+      ) {
+        nodes {
+          id
+          name
+        }
+      }
+    }
+  }
+
+  labels: issueLabels(filter: { name: { in: $labelNames } }) {
+    nodes {
+      id
+      name
+    }
+  }
+
+  statuses: workflowStates(
+    filter: {
+      or: [
+        { team: { key: { eq: $teamKey } } }
+        { team: { name: { eq: $teamName } } }
+        { team: { id: { eq: $teamId } } }
+      ]
+    }
+    first: 50
+  ) {
+    nodes {
+      id
+      name
+      team {
+        id
+        key
+      }
+    }
+  }
+
+  cycles(
+    filter: {
+      and: [
+        { name: { eq: $cycleName } }
+        {
+          or: [
+            { team: { key: { eq: $teamKey } } }
+            { team: { name: { eq: $teamName } } }
+            { team: { id: { eq: $teamId } } }
+          ]
+        }
+      ]
+    }
+    first: 10
+  ) {
+    nodes {
+      id
+      name
+      isActive
+      isNext
+      isPrevious
+      number
+      startsAt
+      team {
+        id
+        key
+      }
+    }
+  }
+
+  parentIssues: issues(
+    filter: {
+      and: [
+        { team: { key: { eq: $parentTeamKey } } }
+        { number: { eq: $parentIssueNumber } }
+      ]
+    }
+    first: 1
+  ) {
+    nodes {
+      id
+      identifier
+    }
+  }
+}
+
+query BatchResolveIssueLabelsPage($first: Int!, $after: String) {
+  issueLabels(first: $first, after: $after) {
+    nodes {
+      id
+      name
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+query BatchResolveWorkflowStatesPage($first: Int!, $after: String) {
+  workflowStates(first: $first, after: $after) {
+    nodes {
+      id
+      name
+      team {
+        id
+      }
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+# Complete issue fragment with attachments
+fragment CompleteIssueWithAttachmentsFields on Issue {
+  ...CompleteIssueWithDefaultCommentsFields
+  attachments {
+    nodes {
+      ...AttachmentFields
+    }
+  }
+}
+
+# Get single issue by UUID with attachments
+query GetIssueByIdWithAttachments($id: String!) {
+  issue(id: $id) {
+    ...CompleteIssueWithAttachmentsFields
+  }
+}
+
+# Page workspace issues stale beyond the supplied cutoff. Used by
+# `linear preflight --check` to count non-terminal issues that have not seen any
+# update for N days; excludes terminal states (completed, canceled, duplicate) so the
+# count reflects work in flight rather than archived history.
+query CountStaleIssues(
+  $cutoff: DateTimeOrDuration!
+  $first: Int!
+  $after: String
+) {
+  issues(
+    filter: {
+      updatedAt: { lt: $cutoff }
+      state: { type: { nin: ["completed", "canceled", "duplicate"] } }
+    }
+    first: $first
+    after: $after
+  ) {
+    nodes {
+      id
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+# Page workspace issues that are non-terminal and have no assignee. Used
+# by `linear doctor` to flag the orphan-count check (open work nobody
+# owns).
+query CountOrphanIssues($first: Int!, $after: String) {
+  issues(
+    filter: {
+      assignee: { null: true }
+      state: { type: { nin: ["completed", "canceled", "duplicate"] } }
+    }
+    first: $first
+    after: $after
+  ) {
+    nodes {
+      id
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+# Page issues bearing the `human` label, used by `linear human list` to
+# surface the queue of issues flagged for human intervention. The label is
+# a Linear-Hack convention (a workspace-level label named `human`); we
+# filter by name rather than ID so the query works without a separate
+# resolver call. State.type is included so callers can post-filter to
+# open/closed without a second round-trip.
+fragment HumanIssueFields on Issue {
+  id
+  identifier
+  title
+  priority
+  state {
+    id
+    name
+    type
+  }
+  team {
+    id
+    key
+  }
+  labels {
+    nodes {
+      id
+      name
+    }
+  }
+  updatedAt
+}
+
+query ListHumanIssues($first: Int!, $after: String) {
+  issues(
+    filter: { labels: { name: { eq: "human" } } }
+    first: $first
+    after: $after
+  ) {
+    nodes {
+      ...HumanIssueFields
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+# Fetch a single issue by UUID with the minimal payload `linear human
+# respond/dismiss` needs as a pre-mutation read: state.type (to detect
+# already-closed issues), team.id (for state-id resolution), and the
+# label list (to warn when the issue is missing the `human` label).
+query GetHumanIssueById($id: String!) {
+  issue(id: $id) {
+    ...HumanIssueFields
+  }
+}
+
+# Page all non-terminal workspace issues. Used by `linear info`
+# to surface the active-work count for a workspace health snapshot.
+query CountOpenIssues($first: Int!, $after: String) {
+  issues(
+    filter: { state: { type: { nin: ["completed", "canceled", "duplicate"] } } }
+    first: $first
+    after: $after
+  ) {
+    nodes {
+      id
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+# Per-issue comment counts for a set of issue IDs, fetched in ONE request to
+# back `issues list --with-comment-counts` (lin-ov30.7). Linear's
+# CommentConnection exposes no `totalCount`, so we count nested comment nodes
+# in the same request — still no per-issue (N+1) fan-out. The inner `first`
+# bounds pathological comment volumes; counts above the cap saturate.
+query GetIssueCommentCounts($filter: IssueFilter, $first: Int!) {
+  issues(filter: $filter, first: $first) {
+    nodes {
+      id
+      comments(first: 250) {
+        nodes {
+          id
+        }
+      }
+    }
+  }
+}
+
+# Page closed (completed, canceled, or duplicate) issues that have NOT been archived.
+# A heavy un-archived backlog clutters reports and the Linear board. lin-hqiz:
+# part of the doctor hygiene-check expansion. The `includeArchived` arg
+# stays at its default (false) so archived issues are implicitly excluded.
+query CountClosedNotArchived($first: Int!, $after: String) {
+  issues(
+    filter: { state: { type: { in: ["completed", "canceled", "duplicate"] } } }
+    first: $first
+    after: $after
+  ) {
+    nodes {
+      id
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+# Page non-terminal issues whose parent has been archived. Linear preserves the
+# parentId reference even after the parent is archived, so a child can
+# end up "stranded" with a tombstone parent. lin-hqiz: part of the doctor
+# hygiene-check expansion. `includeArchived: true` is required so the
+# filter can resolve archived parents.
+query CountBrokenParentEdges($first: Int!, $after: String) {
+  issues(
+    filter: {
+      state: { type: { nin: ["completed", "canceled", "duplicate"] } }
+      parent: { archivedAt: { null: false } }
+    }
+    includeArchived: true
+    first: $first
+    after: $after
+  ) {
+    nodes {
+      id
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+# Page stale non-terminal issues scoped to a specific team. lin-hqiz:
+# the doctor's workspace-wide stale check leaks across teams; the
+# team-scoped variant surfaces hygiene smells inside the user's
+# declared default team without false-positives from other teams.
+query CountStaleIssuesInTeam(
+  $teamId: ID!
+  $cutoff: DateTimeOrDuration!
+  $first: Int!
+  $after: String
+) {
+  issues(
+    filter: {
+      team: { id: { eq: $teamId } }
+      updatedAt: { lt: $cutoff }
+      state: { type: { nin: ["completed", "canceled", "duplicate"] } }
+    }
+    first: $first
+    after: $after
+  ) {
+    nodes {
+      id
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+# Page workspace issues currently sitting in any `triage`-type state. Used
+# by `linear preflight --check` to flag a growing triage backlog.
+query CountTriageIssues($first: Int!, $after: String) {
+  issues(
+    filter: { state: { type: { eq: "triage" } } }
+    first: $first
+    after: $after
+  ) {
+    nodes {
+      id
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+# Get issue by identifier with attachments
+query GetIssueByIdentifierWithAttachments($teamKey: String!, $number: Float!) {
+  issues(
+    filter: { team: { key: { eq: $teamKey } }, number: { eq: $number } }
+    first: 1
+  ) {
+    nodes {
+      ...CompleteIssueWithAttachmentsFields
+    }
+  }
+}
+
+# Paginated export query — pulls every field needed to emit the JSONL export.
+# Combines CompleteIssueFields (state, team, labels, relations,
+# inverseRelations, parent/children) with the richer comment fields needed
+# for round-trip migration. `includeArchived: true` is forwarded so the
+# command can opt-in via `--all`. The IssueFilter passthrough lets the
+# command apply server-side narrowing (e.g. team scope).
+query ListIssuesForExport(
+  $first: Int!
+  $after: String
+  $filter: IssueFilter
+  $includeArchived: Boolean
+) {
+  issues(
+    first: $first
+    after: $after
+    filter: $filter
+    includeArchived: $includeArchived
+  ) {
+    nodes {
+      ...CompleteIssueWithCommentsFields
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}

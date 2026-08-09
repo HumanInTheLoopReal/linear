@@ -1,0 +1,160 @@
+# ------------------------------------------------------------
+# GraphQL queries for Linear documents
+#
+# Documents are standalone entities that can be associated with projects,
+# initiatives, or teams. To link a document to an issue, use the
+# attachments API (see attachments.graphql).
+# ------------------------------------------------------------
+
+# Document fields fragment
+#
+# Defines the basic fields for a document entity. The trashed field
+# indicates soft-deletion status (documents are not hard-deleted).
+fragment DocumentFields on Document {
+  id
+  title
+  content
+  slugId
+  url
+  icon
+  color
+  createdAt
+  updatedAt
+  trashed
+}
+
+# Get a single document by ID
+#
+# Fetches a document by its unique identifier.
+query GetDocument($id: String!) {
+  document(id: $id) {
+    ...DocumentFields
+  }
+}
+
+# List documents with optional filtering
+#
+# Fetches a list of documents with optional filtering criteria.
+query ListDocuments($first: Int!, $after: String, $filter: DocumentFilter) {
+  documents(first: $first, after: $after, filter: $filter) {
+    nodes {
+      ...DocumentFields
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+# ------------------------------------------------------------
+# Document comments
+#
+# Linear anchors document comments to the document's DocumentContent, not
+# to the Document itself: reads come off `Document.comments`, but writes go
+# through `CommentCreateInput.documentContentId`. `GetDocumentCommentTarget`
+# is the lookup hop that turns a document slug ID / UUID into the content ID
+# a comment can be posted against.
+#
+# The comment shape is the shared `DiscussionCommentFields` fragment
+# (graphql/queries/discussions.graphql), so document threads render through
+# the same formatters as issue / project / initiative threads.
+# ------------------------------------------------------------
+
+# Resolve a document (slug ID or UUID) to its comment target
+query GetDocumentCommentTarget($id: String!) {
+  document(id: $id) {
+    id
+    title
+    documentContentId
+  }
+}
+
+# List root comment threads on a document
+query ListDocumentDiscussionRoots(
+  $documentId: String!
+  $first: Int
+  $after: String
+) {
+  document(id: $documentId) {
+    comments(first: $first, after: $after, filter: { parent: { null: true } }) {
+      nodes {
+        ...DiscussionCommentFields
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+}
+
+query ListDocumentDiscussionRootsWithReactions(
+  $documentId: String!
+  $first: Int
+  $after: String
+) {
+  document(id: $documentId) {
+    comments(first: $first, after: $after, filter: { parent: { null: true } }) {
+      nodes {
+        ...DiscussionCommentFieldsWithReactions
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+}
+
+# Reply candidates for a document thread
+#
+# Mirrors the issue / project reply-candidate queries: fetch every non-root
+# comment on the parent entity, then rebuild the thread tree client-side.
+query ListDocumentDiscussionReplyCandidates(
+  $documentContentId: ID!
+  $first: Int
+  $after: String
+) {
+  comments(
+    first: $first
+    after: $after
+    orderBy: createdAt
+    filter: {
+      documentContent: { id: { eq: $documentContentId } }
+      parent: { null: false }
+    }
+  ) {
+    nodes {
+      ...DiscussionCommentFields
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+query ListDocumentDiscussionReplyCandidatesWithReactions(
+  $documentContentId: ID!
+  $first: Int
+  $after: String
+) {
+  comments(
+    first: $first
+    after: $after
+    orderBy: createdAt
+    filter: {
+      documentContent: { id: { eq: $documentContentId } }
+      parent: { null: false }
+    }
+  ) {
+    nodes {
+      ...DiscussionCommentFieldsWithReactions
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}

@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+#
+# Post-push hook: rebuild and install the Linear CLI locally after a
+# successful `git push` that touched TypeScript/JavaScript sources.
+#
+# Runs `npm run build` and a global install after a push that touches
+# source files. Per docs/parity-ux/specs/F-install.md §2.7.
+#
+# This is a dev-loop convenience: it makes the `linear` on your PATH
+# track HEAD without you having to remember to rebuild. It is NOT
+# installed by default — copy it in via scripts/install-hooks.sh if you
+# want it.
+
+set -e
+
+# Detect changed files in the just-pushed range. Git's `post-push` hook
+# isn't a real built-in (we install it with that name as a convention),
+# so it doesn't get the push range on argv. Fall back
+# to comparing HEAD against the upstream tracking branch.
+
+changed_files=""
+
+# Preferred: pushed range from a `git push --signed`/normal flow that
+# reads stdin (mirrors how Git's pre-push provides "<local-ref> <local-sha>
+# <remote-ref> <remote-sha>" lines). If nothing on stdin, drop through.
+if [ ! -t 0 ]; then
+    while IFS=' ' read -r _local_ref local_sha _remote_ref remote_sha; do
+        if [ -z "$local_sha" ]; then continue; fi
+        if [ "$remote_sha" = "0000000000000000000000000000000000000000" ] || [ -z "$remote_sha" ]; then
+            range_diff=$(git diff --name-only "$local_sha" 2>/dev/null || true)
+        else
+            range_diff=$(git diff --name-only "$remote_sha" "$local_sha" 2>/dev/null || true)
+        fi
+        changed_files="${changed_files}${range_diff}"$'\n'
+    done
+fi
+
+# Fallback: compare HEAD against upstream tracking branch.
+if [ -z "$(echo "$changed_files" | tr -d '[:space:]')" ]; then
+    upstream=$(git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null || true)
+    if [ -n "$upstream" ]; then
+        changed_files=$(git diff --name-only "$upstream"..HEAD 2>/dev/null || true)
+    fi
+fi
+
+# Last-ditch fallback: diff against the previous commit.
+if [ -z "$(echo "$changed_files" | tr -d '[:space:]')" ]; then
+    changed_files=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || true)
+fi
+
+if echo "$changed_files" | grep -qE '\.(ts|tsx|js|mjs|cjs|json|graphql)$'; then
+    echo ""
+    echo "TypeScript/JavaScript sources changed in this push — rebuilding linear CLI..."
+    if ! npm run build; then
+        echo "Build failed; not reinstalling globally."
+        exit 0
+    fi
+    if ! npm install -g .; then
+        echo "Global install failed; check that you have permission to write to npm prefix."
+        exit 0
+    fi
+    echo "linear CLI installed globally from HEAD."
+    echo ""
+fi
+
+exit 0

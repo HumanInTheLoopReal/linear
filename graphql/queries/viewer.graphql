@@ -1,0 +1,27 @@
+# Viewer query for token validation
+#
+# Returns the authenticated user's basic info.
+# Used by `linear auth` to validate tokens.
+query GetViewer {
+  viewer {
+    id
+    name
+    email
+  }
+}
+
+# Viewer + workspace identity for `linear info` / `linear where --viewer`.
+# Pulls organization name + urlKey so the CLI can show *which* Linear
+# workspace the configured token is talking to, not just the user behind it.
+query GetViewerWithOrg {
+  viewer {
+    id
+    name
+    email
+    organization {
+      id
+      name
+      urlKey
+    }
+  }
+}

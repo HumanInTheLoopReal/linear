@@ -1,0 +1,38 @@
+# Create a workspace- or team-scoped issue label. If `teamId` is omitted,
+# Linear creates a workspace-wide label visible to all teams.
+mutation CreateIssueLabel($input: IssueLabelCreateInput!) {
+  issueLabelCreate(input: $input) {
+    success
+    issueLabel {
+      id
+      name
+      color
+      description
+    }
+  }
+}
+
+# Rename or re-describe an existing label. Only the fields present in
+# `input` change, so a rename leaves the description (and every issue the
+# label is already applied to) intact.
+mutation UpdateIssueLabel($id: String!, $input: IssueLabelUpdateInput!) {
+  issueLabelUpdate(id: $id, input: $input) {
+    success
+    issueLabel {
+      id
+      name
+      color
+      description
+    }
+  }
+}
+
+# Permanently delete a workspace label. Used by the snooze GC path to
+# remove `deferred-until:<date>` labels that no longer carry any issues,
+# so the workspace doesn't accumulate one residual label per snooze date.
+# (lin-5d8g)
+mutation DeleteIssueLabel($id: String!) {
+  issueLabelDelete(id: $id) {
+    success
+  }
+}

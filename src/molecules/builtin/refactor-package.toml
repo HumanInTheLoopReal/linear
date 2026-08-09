@@ -1,0 +1,70 @@
+name = "refactor-package"
+description = "Refactor a package: audit → plan → execute → verify"
+
+[[variables]]
+name = "pkg"
+description = "Package or directory path to refactor (e.g. src/services/foo)"
+
+[[variables]]
+name = "owner"
+description = "Engineer driving the work (display name, email, or UUID)"
+
+[[issues]]
+key = "audit"
+title = "Audit {{pkg}}"
+type = "task"
+priority = 2
+description = """
+Walk {{pkg}} and record findings. Look for:
+
+- Hot spots: files > 500 LOC, deep nesting, repeated patterns
+- Dead code: exports nobody imports, unreachable branches
+- Test gaps: functions with no unit coverage
+- API friction: confusing names, leaky abstractions
+
+Output: a short findings doc the plan step will consume.
+"""
+
+[[issues]]
+key = "plan"
+title = "Plan refactor of {{pkg}}"
+type = "task"
+priority = 2
+depends_on = ["audit"]
+description = """
+Turn the audit findings into a concrete refactor plan:
+
+- Sequenced steps (smallest reversible commit per step)
+- Risk assessment per step (what could regress, how to verify)
+- Out-of-scope list (so reviewers know what to ignore)
+"""
+
+[[issues]]
+key = "execute"
+title = "Execute refactor of {{pkg}}"
+type = "feature"
+priority = 2
+depends_on = ["plan"]
+description = """
+Carry out the plan, one commit per step. Each commit must:
+
+- Pass `npm run check:ci && npx tsc --noEmit && npm test && npm run build`
+- Have a Conventional Commits subject
+- Reference {{pkg}} in the body
+
+Don't bundle unrelated cleanups.
+"""
+
+[[issues]]
+key = "verify"
+title = "Verify {{pkg}} refactor"
+type = "task"
+priority = 2
+depends_on = ["execute"]
+description = """
+End-to-end sanity check the refactored {{pkg}}:
+
+- All four CI gates green on the final commit
+- Empirical smoke test from a clean install
+- Diff review: nothing slipped in beyond the plan
+"""

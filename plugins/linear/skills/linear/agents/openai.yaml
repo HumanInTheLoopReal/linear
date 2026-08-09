@@ -1,0 +1,4 @@
+interface:
+  display_name: "Linear"
+  short_description: "Run durable human-agent Linear workflows"
+  default_prompt: "Use $linear to structure and operate this work without turning Linear into agent scratch space."

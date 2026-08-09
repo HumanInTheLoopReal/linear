@@ -1,0 +1,44 @@
+# ------------------------------------------------------------
+# Lean issue queries for aggregate stats.
+#
+# Backs `linear issues status` — wants per-bucket counts (open,
+# in_progress, blocked, deferred, closed). Linear's `status` aggregate
+# has no count-only API, so we
+# paginate minimal projections and tally client-side.
+# ------------------------------------------------------------
+
+fragment IssueStatsFields on Issue {
+  id
+  priority
+  state {
+    id
+    type
+    name
+  }
+  assignee {
+    id
+    name
+  }
+  labels {
+    nodes {
+      id
+      name
+    }
+  }
+}
+
+query ListIssuesForStats(
+  $first: Int = 100
+  $after: String
+  $filter: IssueFilter
+) {
+  issues(first: $first, after: $after, filter: $filter) {
+    nodes {
+      ...IssueStatsFields
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}

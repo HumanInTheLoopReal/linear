@@ -1,0 +1,92 @@
+import { LinearClient } from "@linear/sdk";
+import { type DocumentNode, getOperationAST, print } from "graphql";
+import { AuthenticationError, isAuthError } from "../common/errors.js";
+import { withRetry } from "../common/retry.js";
+
+/** Default timeout for GraphQL API requests (30 seconds) */
+const REQUEST_TIMEOUT_MS = 30_000;
+
+interface GraphQLErrorResponse {
+  response?: {
+    errors?: Array<{ message: string }>;
+  };
+  message?: string;
+}
+
+export class GraphQLClient {
+  private readonly apiToken: string;
+  private readonly apiUrl?: string;
+
+  constructor(apiToken: string, apiUrl?: string) {
+    this.apiToken = apiToken;
+    this.apiUrl = apiUrl || undefined;
+  }
+
+  private createRawClient(
+    signal?: AbortSignal,
+  ): InstanceType<typeof LinearClient>["client"] {
+    const linearClient = new LinearClient({
+      apiKey: this.apiToken,
+      ...(this.apiUrl ? { apiUrl: this.apiUrl } : {}),
+      signal,
+      headers: {
+        // Request 1-hour signed URLs for file downloads (see file-service.ts)
+        "public-file-urls-expire-in": "3600",
+      },
+    });
+    return linearClient.client;
+  }
+
+  async request<TResult>(
+    document: DocumentNode,
+    variables?: Record<string, unknown>,
+  ): Promise<TResult> {
+    try {
+      const executeRequest = async () => {
+        const timeoutController = new AbortController();
+        const timeoutHandle = setTimeout(() => {
+          timeoutController.abort();
+        }, REQUEST_TIMEOUT_MS);
+
+        try {
+          return await this.createRawClient(
+            timeoutController.signal,
+          ).rawRequest(print(document), variables);
+        } catch (error: unknown) {
+          if (
+            timeoutController.signal.aborted &&
+            error instanceof Error &&
+            error.message.toLowerCase().includes("aborted")
+          ) {
+            throw new Error("Request timed out");
+          }
+          throw error;
+        } finally {
+          clearTimeout(timeoutHandle);
+        }
+      };
+      const operation = getOperationAST(document)?.operation;
+      // A mutation may have committed before a timeout or connection reset,
+      // so replay only queries. Unknown operation shapes stay conservative.
+      const response =
+        operation === "query"
+          ? await withRetry(executeRequest)
+          : await executeRequest();
+      return response.data as TResult;
+    } catch (error: unknown) {
+      const gqlError = error as GraphQLErrorResponse;
+      const errorMessage = gqlError.response?.errors?.[0]?.message ?? "";
+
+      if (isAuthError(new Error(errorMessage))) {
+        throw new AuthenticationError(errorMessage || undefined);
+      }
+
+      if (errorMessage) {
+        throw new Error(errorMessage);
+      }
+      throw new Error(
+        `GraphQL request failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+}

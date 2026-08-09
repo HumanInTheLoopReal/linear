@@ -1,0 +1,18 @@
+# ------------------------------------------------------------
+# Mutations for Linear teams.
+#
+# The only mutation we currently issue against the Team entity is
+# `teamUpdate` — used by `linear teams rename-prefix` to change the
+# short key that prefixes future issue identifiers. Existing issue
+# identifiers in Linear are immutable, so this is a forward-only
+# operation.
+# ------------------------------------------------------------
+
+mutation UpdateTeam($id: String!, $input: TeamUpdateInput!) {
+  teamUpdate(id: $id, input: $input) {
+    success
+    team {
+      ...TeamFields
+    }
+  }
+}

@@ -1,0 +1,34 @@
+# ------------------------------------------------------------
+# Lean issue query for `linear issues snapshot`.
+#
+# Captures just the fields the diff cares about (title, status,
+# priority, description) plus identifier so the snapshot can be
+# diffed across machines without re-resolving UUIDs.
+# ------------------------------------------------------------
+
+fragment IssueSnapshotFields on Issue {
+  id
+  identifier
+  title
+  description
+  priority
+  state {
+    type
+  }
+}
+
+query ListIssuesForSnapshot(
+  $first: Int = 250
+  $after: String
+  $filter: IssueFilter
+) {
+  issues(first: $first, after: $after, filter: $filter) {
+    nodes {
+      ...IssueSnapshotFields
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
