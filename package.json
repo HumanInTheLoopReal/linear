@@ -36,7 +36,7 @@
     "check:ci": "biome check .",
     "verify:packed-binaries": "node scripts/verify-packed-binaries.mjs",
     "verify:plugin-versions": "node scripts/release/plugin-versions.mjs --check",
-    "release": "npm run verify:plugin-versions && npm run check:ci && npx tsc --noEmit && npm test && npm run build && npm run test:integration:smoke && npm run test:commands && npm run verify:packed-binaries && npx clean-publish --access public",
+    "release": "npm run verify:plugin-versions && npm run check:ci && npx tsc --noEmit && npm test && npm run build && npm run test:integration:smoke && npm run test:commands && npm run verify:packed-binaries && npx clean-publish --without-publish --temp-dir release-package && npm publish ./release-package --access public",
     "prestart": "npm run generate",
     "predev": "npm run generate",
     "prebuild": "npm run generate && npm run generate:usage",

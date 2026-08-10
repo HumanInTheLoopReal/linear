@@ -346,3 +346,6 @@ $RECYCLE.BIN/
 # Local agent wiring
 /.agents/
 /.claude/
+
+# Staged publish tree (clean-publish --temp-dir)
+/release-package/

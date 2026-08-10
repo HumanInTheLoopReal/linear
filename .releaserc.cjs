@@ -38,8 +38,13 @@ module.exports = {
         prepareCmd:
           `node scripts/release/plugin-versions.mjs \${nextRelease.version} && ` +
           "npm run build && npm run verify:plugin-versions && npm run verify:packed-binaries",
+        // clean-publish ignores npm's exit code, so a rejected publish would
+        // still report success. Stage the cleaned tree, then publish it
+        // directly so the registry's exit code fails the release.
         publishCmd:
-          'npx clean-publish --access public --tag $( [ "$GITHUB_REF_NAME" = "next" ] && echo next || echo latest ) -- --provenance',
+          "npx clean-publish --without-publish --temp-dir release-package && " +
+          "npm publish ./release-package --access public --provenance " +
+          '--tag $( [ "$GITHUB_REF_NAME" = "next" ] && echo next || echo latest )',
       },
     ],
     ["@semantic-release/github", { successComment: false, failComment: false }],
