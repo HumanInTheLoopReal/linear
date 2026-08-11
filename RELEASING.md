@@ -79,6 +79,60 @@ A failed publish fails the workflow. If it fails after the tag was pushed,
 delete the orphan tag and the `chore(release):` bump commit before retrying, so
 the repository never advertises a version that was never published.
 
+## Verifying a release
+
+The workflow proves the tarball builds; it does not prove the registry
+serves it. After a release lands:
+
+```bash
+npm view @humanintheloop/linear version
+npm install -g @humanintheloop/linear && linear --version
+gh release view "v$(npm view @humanintheloop/linear version)"
+```
+
+A first publish can 404 for a minute or two while the registry propagates.
+That is not a failure, and the workflow log is the authority: `npm publish`
+prints `+ @humanintheloop/linear@VERSION` only when the registry accepted it.
+
+## Shipping an urgent fix
+
+There is no separate hotfix procedure. Commit the fix as `fix:` and push it
+to `main`; the pipeline cuts the next patch within a few minutes. Do not
+branch from a tag and hand-bump a version, which is what this document used
+to describe, because semantic-release owns the version and a hand-made tag
+desynchronises it.
+
+Shipping an urgent fix on top of an *older* release is not supported: the
+pipeline releases from `main` only. Roll forward instead.
+
+## Rolling back
+
+Rolling forward with a `fix:` is the real remedy. These steps only contain
+the damage while that happens.
+
+**Warn npm users off the bad version.** Deprecation warns at install time and
+deliberately leaves the version installable:
+
+```bash
+npm deprecate @humanintheloop/linear@X.Y.Z "Critical bug; upgrade to X.Y.Z+1"
+```
+
+Do not unpublish. It is only possible within 72 hours and it breaks everyone
+who already pinned that version.
+
+**Demote the GitHub release** so downstream tooling stops resolving it:
+
+```bash
+gh release edit vX.Y.Z --prerelease
+```
+
+**Move the `latest` dist-tag back** if the bad version is still what npm hands
+out by default:
+
+```bash
+npm dist-tag add @humanintheloop/linear@X.Y.Z-1 latest
+```
+
 ## Manual trigger
 
 Run the `Publish Release` workflow from the Actions tab, or:
