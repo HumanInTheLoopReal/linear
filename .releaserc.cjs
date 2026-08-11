@@ -30,7 +30,10 @@ module.exports = {
       "@semantic-release/release-notes-generator",
       { preset: "conventionalcommits" },
     ],
-    ["@semantic-release/changelog", { changelogFile: "CHANGELOG.md" }],
+    [
+      "@semantic-release/changelog",
+      { changelogFile: "CHANGELOG.md", changelogTitle: "# Changelog" },
+    ],
     ["@semantic-release/npm", { npmPublish: false, pkgRoot: "." }],
     [
       "@semantic-release/exec",
