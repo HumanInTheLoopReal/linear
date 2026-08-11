@@ -8,8 +8,8 @@ and the three plugin manifests that wire them into the IDEs.
 For the **why** of the bundle layout, see
 [`docs/adr/0001-plugin-bundle-distribution-model.md`](adr/0001-plugin-bundle-distribution-model.md).
 
-For the **release-time** bump steps, see
-[`RELEASING.md`](../RELEASING.md) section 7.
+Version bumps happen automatically during a release; see
+[`RELEASING.md`](../RELEASING.md).
 
 ## Table of Contents
 
@@ -272,20 +272,19 @@ YYYY-MM-DD
 
 ## 8. Release coordination with RELEASING.md
 
-Every plugin version bump ships with a CLI release. The integration
-point lives in [`RELEASING.md`](../RELEASING.md):
+Every plugin version bump ships with a CLI release, and the release
+pipeline described in [`RELEASING.md`](../RELEASING.md) does the bumping:
 
-- **Section 1 (Prepare release)** bumps `package.json` AND the three
-  plugin manifest files in the same commit. Keeping them in one commit
-  makes "what plugin version shipped with linear vX.Y.Z" trivially
-  answerable from `git log`.
-- **Section 7 (Plugin marketplace)** is the publish step. When the
-  Claude Code marketplace supports automated submission, this step
-  becomes scriptable; until then it is a manual `claude plugin
-  publish` invocation.
+- `scripts/release/plugin-versions.mjs` runs during the prepare step and
+  writes the release version into `package.json` and every plugin
+  manifest, all in the one `chore(release):` commit. That keeps "what
+  plugin version shipped with linear vX.Y.Z" answerable from `git log`.
+- `npm run verify:plugin-versions` gates the release and fails it if any
+  manifest drifts out of lockstep.
+- Submitting to the Claude Code marketplace is still a manual `claude
+  plugin publish` invocation, done after the release lands.
 
-If you bump only the plugin version (no CLI changes), still publish a
-linear-cli release with the same version — the bundle's contract is
-that its version matches the CLI it was tested against, and consumers
-should not have to wonder which bundle version pairs with which CLI
-version.
+Never hand-edit a plugin manifest version. There is no plugin-only
+release: the bundle's contract is that its version matches the CLI it was
+tested against, so consumers never have to wonder which bundle pairs with
+which CLI version.

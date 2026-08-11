@@ -28,8 +28,9 @@ review cost. Switching from tap to core later is mechanical
 (`disable!` the tap formula, point users at the core formula), so the
 v1 choice does not lock out the v2 outcome.
 
-`RELEASING.md` documents **both** paths so the v1 → v2 transition is
-mechanical when it happens.
+[`docs/INSTALLING.md`](../INSTALLING.md) documents **both** paths so the
+v1 → v2 transition is mechanical when it happens. Neither is wired into
+the automated release pipeline yet.
 
 ## Decision
 

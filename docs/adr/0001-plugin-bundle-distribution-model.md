@@ -62,7 +62,7 @@ the non-obvious rationale.
 - One canonical content tree: changes to a slash-command doc or a
   resource immediately benefit both Claude Code and Codex consumers.
 - Versioning: the bundle version (`plugins/linear/.claude-plugin/plugin.json`)
-  bumps in lockstep with the CLI release (see `RELEASING.md` §7),
+  bumps in lockstep with the CLI release (see `RELEASING.md`),
   which makes "what version of the plugin shipped with linear vX.Y.Z"
   trivially answerable.
 
@@ -76,7 +76,7 @@ the non-obvious rationale.
   every move/rename. Mitigated by the maintenance guide
   ([`docs/PLUGIN-MAINTENANCE.md`](../PLUGIN-MAINTENANCE.md)) §5.
 - Public marketplace publish requires a manual step in
-  [`RELEASING.md`](../../RELEASING.md) §7. Until Claude Code adds an
+  [`RELEASING.md`](../../RELEASING.md). Until Claude Code adds an
   automated submission flow, this stays manual.
 
 ## Related

@@ -43,6 +43,7 @@
     "prepare": "npm run generate && lefthook install",
     "prepack": "npm run build",
     "prepublishOnly": "npm test",
+    "release:explain": "node scripts/release/explain.mjs",
     "release:dry-run": "semantic-release --dry-run --no-ci",
     "release:run": "semantic-release"
   },

@@ -141,6 +141,19 @@ jobs:
           }
           npm whoami --registry=https://registry.npmjs.org/
 
+      - name: Explain the release decision
+        shell: bash
+        run: |
+          set -euo pipefail
+          decision="$(node scripts/release/explain.mjs)"
+          printf '%s\n' "$decision"
+          {
+            echo '### Release decision'
+            echo '```'
+            printf '%s\n' "$decision"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Run semantic-release
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
