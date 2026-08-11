@@ -1,6 +1,6 @@
 {
   "name": "linear",
-  "version": "2026.8.2",
+  "version": "2026.8.3",
   "description": "Agent-first Linear.app CLI with skills and slash commands.",
   "author": {
     "name": "Linear CLI maintainers",

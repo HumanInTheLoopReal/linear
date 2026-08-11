@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026.8.3](https://github.com/HumanInTheLoopReal/linear/compare/v2026.8.2...v2026.8.3) (2026-08-11)
+
+### Features
+
+* explain the release decision on every push ([12e7a54](https://github.com/HumanInTheLoopReal/linear/commit/12e7a54409d544d04d74696349e52b53bee6c064))
+
 ## [2026.8.2](https://github.com/HumanInTheLoopReal/linear/compare/v2026.8.1...v2026.8.2) (2026-08-11)
 
 ### Bug Fixes
