@@ -1,0 +1,14 @@
+# Review ownership. Enforced only because the `protect-main` ruleset turns on
+# "require review from Code Owners" — CODEOWNERS alone advertises intent and
+# blocks nothing.
+
+* @HumanInTheLoopReal
+
+# Release-critical path. Everything below decides what reaches the npm
+# registry under the org scope, and a mistake here publishes rather than
+# breaks a build: the publish step runs with a bypass-2FA token, the commit
+# rules decide whether a push ships at all, and the version plugin owns the
+# tag. Review these as "what will this put in front of users", not as CI edits.
+.releaserc.cjs                    @HumanInTheLoopReal
+scripts/release/                  @HumanInTheLoopReal
+.github/workflows/release-*.yml   @HumanInTheLoopReal

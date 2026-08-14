@@ -1,0 +1,34 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "javascript"
+    # Minor and patch bumps ride in one PR: each one reruns the full gate
+    # matrix, and a dozen singleton PRs means a dozen redundant CI runs for
+    # changes that are reviewed as a batch anyway. Majors stay separate so a
+    # breaking bump can never block the routine group.
+    groups:
+      npm-deps:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "ci"
+    groups:
+      actions:
+        applies-to: version-updates
+        patterns:
+          - "*"
