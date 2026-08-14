@@ -148,6 +148,16 @@ flow.
 Report vulnerabilities through GitHub private vulnerability reporting rather
 than a public issue. See [SECURITY.md](SECURITY.md).
 
+## Star History
+
+<a href="https://star-history.com/#HumanInTheLoopReal/linear&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=HumanInTheLoopReal/linear&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=HumanInTheLoopReal/linear&type=Date" />
+    <img alt="Star history chart for HumanInTheLoopReal/linear" src="https://api.star-history.com/svg?repos=HumanInTheLoopReal/linear&type=Date" />
+  </picture>
+</a>
+
 ## License
 
 MIT. See [LICENSE.md](LICENSE.md).
