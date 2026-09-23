@@ -9,7 +9,7 @@
       "name": "linear",
       "source": "./plugins/linear",
       "description": "AI-supervised CLI for Linear.app. Manage issues, discover work, recover context after compaction.",
-      "version": "2026.9.0"
+      "version": "2026.9.1"
     }
   ]
 }

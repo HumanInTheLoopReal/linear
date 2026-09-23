@@ -1,5 +1,12 @@
 # Changelog
 
+## [2026.9.1](https://github.com/HumanInTheLoopReal/linear/compare/v2026.9.0...v2026.9.1) (2026-09-23)
+
+### Bug Fixes
+
+* count every comment in --with-comment-counts ([f75083d](https://github.com/HumanInTheLoopReal/linear/commit/f75083d7811fcd1d252b6ead3be837dc51c69953))
+* export every comment on each issue ([ff0c2c5](https://github.com/HumanInTheLoopReal/linear/commit/ff0c2c546476f5f7b2967eec850c1443d0656982))
+
 ## [2026.9.0](https://github.com/HumanInTheLoopReal/linear/compare/v2026.8.3...v2026.9.0) (2026-09-23)
 
 ### Features
