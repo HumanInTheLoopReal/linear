@@ -45,6 +45,7 @@ import {
   ListIssuesForExportDocument,
   type ListIssuesForExportQuery,
 } from "../gql/graphql.js";
+import { withAllComments } from "./issue-service.js";
 
 const PAGE_SIZE = 100;
 const MAX_PAGES = 1000;
@@ -180,7 +181,9 @@ export async function exportIssues(
       },
     );
     for (const node of r.issues.nodes) {
-      out.push(projectIssueForExport(node));
+      // The list query carries Linear's default comment page per issue;
+      // only an issue with more comments costs extra requests.
+      out.push(projectIssueForExport(await withAllComments(opts.client, node)));
     }
     if (!r.issues.pageInfo.hasNextPage) return out;
     cursor = r.issues.pageInfo.endCursor ?? undefined;

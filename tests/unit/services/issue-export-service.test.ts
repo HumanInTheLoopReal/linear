@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import type { GraphQLClient } from "../../../src/client/graphql-client.js";
 import {
+  GetIssueReadCommentsPageDocument,
+  ListIssuesForExportDocument,
+} from "../../../src/gql/graphql.js";
+import {
   exportIssues,
   projectIssueForExport,
   summarizeExport,
@@ -35,6 +39,8 @@ function issueNode(args: {
     createdAt: string;
     user?: { id: string; displayName: string } | null;
   }>;
+  /** Cursor for more comments past this first page; unset means none. */
+  moreCommentsAfter?: string;
 }) {
   return {
     id: args.id,
@@ -65,6 +71,10 @@ function issueNode(args: {
         parentId: null,
         user: c.user ?? null,
       })),
+      pageInfo: {
+        hasNextPage: args.moreCommentsAfter !== undefined,
+        endCursor: args.moreCommentsAfter ?? null,
+      },
     },
     createdAt: "2026-05-01T00:00:00.000Z",
     updatedAt: "2026-05-01T00:00:00.000Z",
@@ -196,6 +206,87 @@ describe("exportIssues — pagination", () => {
       includeArchived?: boolean;
     };
     expect(variables.includeArchived).toBe(true);
+  });
+});
+
+describe("exportIssues comment paging", () => {
+  function comment(id: string) {
+    return {
+      id,
+      body: id,
+      createdAt: "2026-05-01T00:00:00.000Z",
+      editedAt: null,
+      parentId: null,
+      user: null,
+    };
+  }
+
+  it("fetches remaining comments only for issues whose first page reports more", async () => {
+    const request = vi.fn(async (document: unknown, variables: unknown) => {
+      if (document === ListIssuesForExportDocument) {
+        return pageResp([
+          issueNode({
+            id: "busy",
+            comments: [{ id: "c1", body: "c1", createdAt: "x" }],
+            moreCommentsAfter: "cursor-1",
+          }),
+          issueNode({
+            id: "quiet",
+            comments: [{ id: "q1", body: "q1", createdAt: "x" }],
+          }),
+        ]);
+      }
+      const { after } = variables as { after: string };
+      return after === "cursor-1"
+        ? {
+            issue: {
+              comments: {
+                nodes: [comment("c2")],
+                pageInfo: { hasNextPage: true, endCursor: "cursor-2" },
+              },
+            },
+          }
+        : {
+            issue: {
+              comments: {
+                nodes: [comment("c3")],
+                pageInfo: { hasNextPage: false, endCursor: "cursor-3" },
+              },
+            },
+          };
+    });
+    const client = { request } as unknown as GraphQLClient;
+
+    const lines = await exportIssues({ client });
+
+    expect(lines[0].comments.map((c) => c.id)).toEqual(["c1", "c2", "c3"]);
+    expect(lines[1].comments.map((c) => c.id)).toEqual(["q1"]);
+    const commentPageCalls = request.mock.calls.filter(
+      ([document]) => document === GetIssueReadCommentsPageDocument,
+    );
+    expect(commentPageCalls.map(([, variables]) => variables)).toEqual([
+      { id: "busy", first: 250, after: "cursor-1" },
+      { id: "busy", first: 250, after: "cursor-2" },
+    ]);
+  });
+
+  it("fails rather than exporting a partial discussion when the issue vanishes", async () => {
+    const request = vi.fn(async (document: unknown) =>
+      document === ListIssuesForExportDocument
+        ? pageResp([
+            issueNode({
+              id: "busy",
+              comments: [{ id: "c1", body: "c1", createdAt: "x" }],
+              moreCommentsAfter: "cursor-1",
+            }),
+          ])
+        : { issue: null },
+    );
+    const client = { request } as unknown as GraphQLClient;
+
+    await expect(exportIssues({ client })).rejects.toThrow(
+      'Issue with ID "busy" not found',
+    );
   });
 });
 

@@ -230,6 +230,43 @@ export async function listIssues(
   };
 }
 
+const COMMENT_PAGE_SIZE = 250;
+
+interface CommentPageInfo {
+  hasNextPage: boolean;
+  endCursor?: string | null;
+}
+
+/**
+ * Follow an issue's comment `pageInfo` to the end and return the comments
+ * after the first page, with the last page's `pageInfo`. Makes no request
+ * when the first page is complete.
+ */
+async function fetchRemainingComments<N>(
+  issueId: string,
+  firstPage: CommentPageInfo,
+  fetchPage: (
+    after: string,
+  ) => Promise<{ nodes: N[]; pageInfo: CommentPageInfo } | undefined>,
+): Promise<{ nodes: N[]; pageInfo: CommentPageInfo }> {
+  const nodes: N[] = [];
+  let pageInfo = firstPage;
+  while (pageInfo.hasNextPage) {
+    if (!pageInfo.endCursor) {
+      throw new Error(
+        `Linear reported more comments on issue "${issueId}" without a page cursor`,
+      );
+    }
+    const page = await fetchPage(pageInfo.endCursor);
+    if (!page) {
+      throw new Error(`Issue with ID "${issueId}" not found`);
+    }
+    nodes.push(...page.nodes);
+    pageInfo = page.pageInfo;
+  }
+  return { nodes, pageInfo };
+}
+
 /**
  * Per-issue comment counts for a batch of issue IDs, fetched in a SINGLE
  * request (no N+1 fan-out) to back `issues list --with-comment-counts`
@@ -270,35 +307,34 @@ export async function getIssue(
   return result.issue;
 }
 
-const COMMENT_PAGE_SIZE = 250;
+type IssueReadCommentPage = IssueDetailWithComments["comments"];
 
 /**
- * Follow `comments.pageInfo` until the issue's whole discussion is loaded.
- * The read query carries the first page; the rest arrive here, so the
- * returned `pageInfo.hasNextPage` is always false.
+ * Load every comment of an issue whose query carried only the first page.
+ * The result's `pageInfo.hasNextPage` is always false.
  */
-async function withAllComments<
-  T extends IssueDetailWithComments | IssueByIdentifierWithComments,
+export async function withAllComments<
+  T extends { id: string; comments: IssueReadCommentPage },
 >(client: GraphQLClient, issue: T): Promise<T> {
-  const nodes = [...issue.comments.nodes];
-  let pageInfo = issue.comments.pageInfo;
-  while (pageInfo.hasNextPage) {
-    if (!pageInfo.endCursor) {
-      throw new Error(
-        `Linear reported more comments on issue "${issue.id}" without a page cursor`,
+  if (!issue.comments.pageInfo.hasNextPage) return issue;
+  const rest = await fetchRemainingComments(
+    issue.id,
+    issue.comments.pageInfo,
+    async (after) => {
+      const page = await client.request<GetIssueReadCommentsPageQuery>(
+        GetIssueReadCommentsPageDocument,
+        { id: issue.id, first: COMMENT_PAGE_SIZE, after },
       );
-    }
-    const page = await client.request<GetIssueReadCommentsPageQuery>(
-      GetIssueReadCommentsPageDocument,
-      { id: issue.id, first: COMMENT_PAGE_SIZE, after: pageInfo.endCursor },
-    );
-    if (!page.issue) {
-      throw new Error(`Issue with ID "${issue.id}" not found`);
-    }
-    nodes.push(...page.issue.comments.nodes);
-    pageInfo = page.issue.comments.pageInfo;
-  }
-  return { ...issue, comments: { nodes, pageInfo } };
+      return page.issue?.comments;
+    },
+  );
+  return {
+    ...issue,
+    comments: {
+      nodes: [...issue.comments.nodes, ...rest.nodes],
+      pageInfo: rest.pageInfo,
+    },
+  };
 }
 
 export async function getIssueWithComments(
