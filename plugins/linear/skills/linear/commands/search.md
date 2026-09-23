@@ -20,7 +20,7 @@ Full-text search across Linear issues. Matches `<query>` against the issue title
 - `--assignee <user>` / `--creator <user>`: Filter by person.
 - `--project <project>`: Filter by project.
 - `--status <statuses>`: Comma-separated workflow-state names (requires `--team`).
-- `--label <labels>`: Comma-separated label names.
+- `--label <labels>`: Label names; comma-separated or repeated, and an issue must carry every one. An unknown label returns no results and a stderr warning.
 - `--cycle <cycle>` / `--milestone <ms>` / `--parent <issue>`: Scope further.
 - `--priority <0-4>` / `--estimate <n>`: Filter by metadata.
 - `--due-before` / `--due-after`, `--created-{after,before}`, `--completed-{after,before}`, `--updated-{after,before}`: Date filters (`YYYY-MM-DD`).

@@ -102,7 +102,11 @@ export function addFilterOptions(
       "--status <statuses>",
       "filter by status (comma-separated). logical aliases (open, closed, in_progress, active, all) work workspace-wide; team-specific state names require --team. by default `list` hides terminal + archived issues; use `--status all` to surface them. run `linear issues statuses --team <team>` to enumerate.",
     )
-    .option("--label <labels>", "filter by labels (comma-separated)")
+    .option(
+      "--label <labels>",
+      "only issues carrying every listed label (comma-separated, repeatable). a label that does not exist matches nothing and is noted on stderr",
+      (value: string, previous: string[] = []) => [...previous, value],
+    )
     .option(
       "--label-pattern <glob>",
       "filter by a label-name glob (e.g. 'type:*', '*-debt'); server-side prefix/suffix/contains. Mutually exclusive with --label.",
@@ -133,6 +137,15 @@ export function addFilterOptions(
       "--scope <label>",
       "override the implicit scope label for this call (e.g. git:other)",
     );
+}
+
+/** Explain on stderr why a filter on a nonexistent label came back empty. */
+export function warnMissingLabels(missing: string[] | undefined): void {
+  for (const name of missing ?? []) {
+    console.error(
+      `Warning: label "${name}" does not exist, so no issue matches --label ${name}`,
+    );
+  }
 }
 
 export async function attachCommentCounts<
@@ -306,6 +319,7 @@ export function registerIssueReportCommands(issues: Command): void {
         prepareIssueFilterOptions(options),
         ctx.gql,
       );
+      warnMissingLabels(filterOptions.missingLabels);
       const includeClosedInText =
         options.status !== undefined || Boolean(filterOptions.includeArchived);
       const baseFilter = buildIssueFilter(filterOptions);
@@ -738,6 +752,7 @@ type → status bucket (open/in_progress/closed).`,
           prepareIssueFilterOptions(options),
           ctx.gql,
         );
+        warnMissingLabels(filterOptions.missingLabels);
         const baseFilter = buildIssueFilter(filterOptions);
         const scope = resolveScopeOption(options.scope);
         const filter = applyScopeToFilter(baseFilter, scope);

@@ -16,12 +16,19 @@ export interface IssueFilterOptions {
   stateIds?: string[];
   stateTypes?: string[];
   stateTypesExclude?: string[];
-  labelIds?: string[];
+  /**
+   * Label names or UUIDs from `--label`. An issue must carry every one;
+   * names match case-insensitively, so a name that exists nowhere yields an
+   * empty result rather than an error.
+   */
+  labels?: string[];
+  /** `labels` entries that match no label in the workspace (stderr note). */
+  missingLabels?: string[];
   /**
    * Pre-built label-name glob fragments (lin-ym1m) from `--label-pattern`.
    * Each is a complete `{ labels: {...} }` IssueFilter produced by
    * `globToLabelFilter`; `buildIssueFilter` ANDs them in alongside the
-   * id-based `labelIds` filter.
+   * `labels` filter.
    */
   labelPatternFilters?: IssueFilter[];
   cycleId?: string;
@@ -62,7 +69,8 @@ export interface RawFilterFlags {
   creator?: string;
   project?: string;
   status?: string;
-  label?: string;
+  /** One entry per `--label` flag; each may itself be comma-separated. */
+  label?: string[];
   /** Label-name glob (lin-ym1m), e.g. `type:*`. Mutually exclusive with `--label`. */
   labelPattern?: string;
   cycle?: string;

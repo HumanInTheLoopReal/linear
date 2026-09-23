@@ -1,5 +1,21 @@
+import { isUuid } from "../common/identifier.js";
 import type { IssueFilterOptions } from "../common/issue-filter.js";
 import type { IssueFilter } from "../gql/graphql.js";
+
+/**
+ * One `labels.some` fragment per label, so an issue must carry every one.
+ * Each entry is a label UUID or a case-insensitive name; a name that exists
+ * nowhere simply matches nothing.
+ */
+export function labelFilterFragments(labels: string[]): IssueFilter[] {
+  return labels.map((label) => ({
+    labels: {
+      some: isUuid(label)
+        ? { id: { eq: label } }
+        : { name: { eqIgnoreCase: label } },
+    },
+  }));
+}
 
 export function buildIssueFilter(
   options: IssueFilterOptions,
@@ -27,9 +43,7 @@ export function buildIssueFilter(
   if (options.stateTypesExclude && options.stateTypesExclude.length > 0) {
     fragments.push({ state: { type: { nin: options.stateTypesExclude } } });
   }
-  if (options.labelIds && options.labelIds.length > 0) {
-    fragments.push({ labels: { some: { id: { in: options.labelIds } } } });
-  }
+  fragments.push(...labelFilterFragments(options.labels ?? []));
   if (options.labelPatternFilters && options.labelPatternFilters.length > 0) {
     // Each fragment is a complete `{ labels: {...} }` glob filter (lin-ym1m).
     fragments.push(...options.labelPatternFilters);

@@ -14,7 +14,7 @@ Show ready work: open Linear issues with no active `blocks` predecessor. This is
 - `-p, --priority <n>`: Filter by priority (1-4, or `P1`-`P4` shorthand).
 - `-a, --assignee <user>`: Filter by assignee (email or display name).
 - `-u, --unassigned`: Only unassigned issues.
-- `-l, --label <labels>`: Filter by labels (comma-separated, AND semantics).
+- `-l, --label <labels>`: Only issues carrying every listed label (comma-separated, repeatable). A label that does not exist matches nothing and is noted on stderr.
 - `-t, --type <type>`: Filter by Linear-Hack `type:<value>` label (e.g. `task`, `bug`).
 - `--include-deferred`: Include issues carrying `deferred` or `deferred-until:<future>` labels (excluded by default).
 - `--claim`: Claim the first match — assigns the issue to the current viewer and transitions it to a `started`-category state. One selector must own concurrent queue selection.

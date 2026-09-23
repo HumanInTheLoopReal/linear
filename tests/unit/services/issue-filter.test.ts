@@ -57,23 +57,27 @@ describe("buildIssueFilter", () => {
     });
   });
 
-  it("builds label filter with multiple IDs", () => {
-    const result = buildIssueFilter({ labelIds: ["l1", "l2"] });
+  it("requires every label, matching names case-insensitively and UUIDs by id", () => {
+    const uuid = "550e8400-e29b-41d4-a716-446655440000";
+    const result = buildIssueFilter({ labels: ["type:bug", uuid] });
     expect(result).toEqual({
-      and: [{ labels: { some: { id: { in: ["l1", "l2"] } } } }],
+      and: [
+        { labels: { some: { name: { eqIgnoreCase: "type:bug" } } } },
+        { labels: { some: { id: { eq: uuid } } } },
+      ],
     });
   });
 
-  it("ANDs in label-pattern glob fragments alongside id filters (lin-ym1m)", () => {
+  it("ANDs in label-pattern glob fragments alongside label filters (lin-ym1m)", () => {
     const result = buildIssueFilter({
-      labelIds: ["l1"],
+      labels: ["bug"],
       labelPatternFilters: [
         { labels: { some: { name: { startsWith: "type:" } } } },
       ],
     });
     expect(result).toEqual({
       and: [
-        { labels: { some: { id: { in: ["l1"] } } } },
+        { labels: { some: { name: { eqIgnoreCase: "bug" } } } },
         { labels: { some: { name: { startsWith: "type:" } } } },
       ],
     });
@@ -195,8 +199,8 @@ describe("buildIssueFilter", () => {
     expect(result).toBeUndefined();
   });
 
-  it("ignores empty labelIds array", () => {
-    const result = buildIssueFilter({ labelIds: [] });
+  it("ignores empty labels array", () => {
+    const result = buildIssueFilter({ labels: [] });
     expect(result).toBeUndefined();
   });
 

@@ -13,6 +13,7 @@ import {
   type GetViewerQuery,
   type IssueFilter,
 } from "../gql/graphql.js";
+import { labelFilterFragments } from "./issue-filter.js";
 import { updateIssue } from "./issue-service.js";
 
 export interface ListNextOptions {
@@ -20,7 +21,8 @@ export interface ListNextOptions {
   assigneeId?: string;
   unassigned?: boolean;
   priority?: number;
-  labelIds?: string[];
+  /** Label names or UUIDs; an issue must carry every one. */
+  labels?: string[];
   /**
    * Label ids to exclude. Issues carrying ANY of these labels are dropped
    * server-side via `labels.every.id.nin`. Empty/undefined → no exclusion.
@@ -91,9 +93,7 @@ export async function listNextIssues(
   if (options.priority !== undefined) {
     fragments.push({ priority: { eq: options.priority } });
   }
-  if (options.labelIds && options.labelIds.length > 0) {
-    fragments.push({ labels: { some: { id: { in: options.labelIds } } } });
-  }
+  fragments.push(...labelFilterFragments(options.labels ?? []));
   if (options.excludeLabelIds && options.excludeLabelIds.length > 0) {
     // `every.id.nin` reads as "all of this issue's labels have an id not in
     // the excluded set", which is equivalent to "no label on the issue is in

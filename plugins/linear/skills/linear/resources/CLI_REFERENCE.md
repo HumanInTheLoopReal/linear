@@ -330,8 +330,10 @@ linear list --label type:bug --json
 ### Label Filters
 
 ```bash
-# Labels (AND: must have ALL — comma-separated)
+# Labels (AND: must have ALL — comma-separated, repeatable, or both)
 linear list --label bug,critical --json
+linear list --label bug --label critical --json   # same filter
+# A label that does not exist matches nothing: empty result, stderr warning.
 # Note: there is no --label-any (OR) flag. For OR semantics, run multiple
 # queries and union the results, or rely on Linear's web UI search.
 ```

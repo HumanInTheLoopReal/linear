@@ -11,7 +11,7 @@ import { type DomainMeta, formatDomainUsage } from "../common/usage.js";
 import type { IssueFilter } from "../gql/graphql.js";
 import { resolveIssueId } from "../resolvers/issue-resolver.js";
 import {
-  resolveLabelIds,
+  findMissingLabelNames,
   resolveLabelIdsPermissive,
 } from "../resolvers/label-resolver.js";
 import { resolveStateIdByType } from "../resolvers/status-resolver.js";
@@ -34,6 +34,7 @@ import {
   statusIcon,
   typeLabel,
 } from "./_format.js";
+import { warnMissingLabels } from "./issues/reports.js";
 
 export const NEXT_META: DomainMeta = {
   name: "next",
@@ -76,7 +77,7 @@ interface NextOptions {
   priority?: string;
   assignee?: string;
   unassigned?: boolean;
-  label?: string;
+  label?: string[];
   excludeLabel?: string;
   labelPattern?: string;
   type?: string;
@@ -233,7 +234,11 @@ export function setupNextCommands(program: Command): void {
       "filter by assignee (email or display name)",
     )
     .option("-u, --unassigned", "only unassigned issues", false)
-    .option("-l, --label <labels>", "filter by labels (comma-separated, AND)")
+    .option(
+      "-l, --label <labels>",
+      "only issues carrying every listed label (comma-separated, repeatable). a label that does not exist matches nothing and is noted on stderr",
+      (value: string, previous: string[] = []) => [...previous, value],
+    )
     .option(
       "-x, --exclude-label <labels>",
       "drop issues carrying any of these labels (comma-separated; unknown names skip silently — useful for hiding example/seed/smoke-test noise)",
@@ -321,15 +326,16 @@ export function setupNextCommands(program: Command): void {
         const priority = options.priority
           ? parsePriorityOption(options.priority)
           : undefined;
-        const labelIds = options.label
-          ? await resolveLabelIds(
-              ctx.sdk,
-              options.label
-                .split(",")
-                .map((s) => s.trim())
-                .filter(Boolean),
-            )
-          : undefined;
+        const labelNames = (options.label ?? []).flatMap((value) =>
+          value
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean),
+        );
+        const labels = labelNames.length > 0 ? labelNames : undefined;
+        if (labels) {
+          warnMissingLabels(await findMissingLabelNames(ctx.sdk, labels));
+        }
         const excludeLabelIds = options.excludeLabel
           ? await resolveLabelIdsPermissive(
               ctx.sdk,
@@ -343,7 +349,7 @@ export function setupNextCommands(program: Command): void {
 
         // --label-pattern: server-side label-name glob (lin-ym1m). Mutually
         // exclusive with exact --label.
-        if (options.labelPattern && options.label) {
+        if (options.labelPattern && labels) {
           throw invalidParameterError(
             "--label-pattern",
             "cannot be combined with --label (use one label filter at a time)",
@@ -381,7 +387,7 @@ export function setupNextCommands(program: Command): void {
           assigneeId,
           unassigned: options.unassigned,
           priority,
-          labelIds,
+          labels,
           excludeLabelIds,
           labelPatternFilter,
           typeLabel,

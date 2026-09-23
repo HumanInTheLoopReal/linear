@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { LinearSdkClient } from "../../../src/client/linear-client.js";
 import {
+  findMissingLabelNames,
   findWorkspaceLabelId,
   resolveLabelId,
   resolveLabelIds,
@@ -169,5 +170,37 @@ describe("resolveLabelIdsPermissive", () => {
 
     expect(result).toEqual(["550e8400-e29b-41d4-a716-446655440000"]);
     expect(issueLabels).not.toHaveBeenCalled();
+  });
+});
+
+describe("findMissingLabelNames", () => {
+  it("returns the names and UUIDs no label matches", async () => {
+    const issueLabels = vi
+      .fn()
+      .mockResolvedValueOnce({ nodes: [{ id: "l-bug" }] })
+      .mockResolvedValueOnce({ nodes: [] })
+      .mockResolvedValueOnce({ nodes: [] });
+    const client = { sdk: { issueLabels } } as unknown as LinearSdkClient;
+
+    const result = await findMissingLabelNames(client, [
+      "Bug",
+      "550e8400-e29b-41d4-a716-446655440000",
+      "nope",
+    ]);
+
+    expect(result).toEqual(["550e8400-e29b-41d4-a716-446655440000", "nope"]);
+    expect(issueLabels).toHaveBeenCalledWith({
+      filter: { name: { eqIgnoreCase: "Bug" } },
+      first: 1,
+    });
+    expect(issueLabels).toHaveBeenCalledWith({
+      filter: { id: { eq: "550e8400-e29b-41d4-a716-446655440000" } },
+      first: 1,
+    });
+  });
+
+  it("returns an empty list when every name exists", async () => {
+    const client = mockSdkClient([{ id: "l-1" }]);
+    expect(await findMissingLabelNames(client, ["bug", "ux"])).toEqual([]);
   });
 });

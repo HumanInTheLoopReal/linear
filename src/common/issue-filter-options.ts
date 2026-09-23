@@ -35,6 +35,7 @@ type DirectIssueFilterOptionKey =
   | "updatedBefore"
   | "hasBlockers"
   | "isBlocking"
+  | "labels"
   | "labelPatternFilters";
 
 export type DirectIssueFilterOptions = Pick<
@@ -120,7 +121,12 @@ export function normalizeIssueFilterOptions(
   const statusNames = opts.status
     ? parseCommaSeparated(opts.status)
     : undefined;
-  const labelNames = opts.label ? parseCommaSeparated(opts.label) : undefined;
+  // An empty `--label ""` means no label filter, as it did before the flag
+  // became repeatable.
+  const parsedLabels = opts.label
+    ?.filter((value) => value !== "")
+    .flatMap(parseCommaSeparated);
+  const labelNames = parsedLabels?.length ? parsedLabels : undefined;
   const labelPatternFilters = compileLabelPattern(
     opts.labelPattern,
     labelNames,
@@ -184,6 +190,7 @@ export function normalizeIssueFilterOptions(
       updatedBefore: opts.updatedBefore,
       hasBlockers: opts.hasBlockers,
       isBlocking: opts.isBlocking,
+      labels: labelNames,
       labelPatternFilters,
     },
   };

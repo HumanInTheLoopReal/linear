@@ -7,7 +7,7 @@ const {
   resolveUserIdMock,
   resolveProjectIdMock,
   resolveStatusIdMock,
-  resolveLabelIdsMock,
+  findMissingLabelNamesMock,
   resolveCycleIdMock,
   resolveIssueIdMock,
 } = vi.hoisted(() => ({
@@ -15,7 +15,7 @@ const {
   resolveUserIdMock: vi.fn(),
   resolveProjectIdMock: vi.fn(),
   resolveStatusIdMock: vi.fn(),
-  resolveLabelIdsMock: vi.fn(),
+  findMissingLabelNamesMock: vi.fn(),
   resolveCycleIdMock: vi.fn(),
   resolveIssueIdMock: vi.fn(),
 }));
@@ -37,7 +37,7 @@ vi.mock("../../../src/resolvers/status-resolver.js", () => ({
 }));
 
 vi.mock("../../../src/resolvers/label-resolver.js", () => ({
-  resolveLabelIds: resolveLabelIdsMock,
+  findMissingLabelNames: findMissingLabelNamesMock,
 }));
 
 vi.mock("../../../src/resolvers/cycle-resolver.js", () => ({
@@ -121,6 +121,21 @@ describe("resolveSearchFilterIds", () => {
     expect(new Set(result.stateTypes)).toEqual(
       new Set(["started", "completed", "canceled", "duplicate"]),
     );
+  });
+
+  it("reports label names that match no label instead of failing", async () => {
+    const sdk = {} as unknown as LinearSdkClient;
+    findMissingLabelNamesMock.mockResolvedValue(["nope"]);
+
+    const result = await resolveSearchFilterIds(sdk, {
+      labelNames: ["type:bug", "nope"],
+    });
+
+    expect(findMissingLabelNamesMock).toHaveBeenCalledWith(sdk, [
+      "type:bug",
+      "nope",
+    ]);
+    expect(result.missingLabels).toEqual(["nope"]);
   });
 
   it("rejects mixing logical aliases with team-specific names (lin-zst6)", async () => {

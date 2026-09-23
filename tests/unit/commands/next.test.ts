@@ -28,11 +28,7 @@ vi.mock("../../../src/resolvers/user-resolver.js", () => ({
 }));
 
 vi.mock("../../../src/resolvers/label-resolver.js", () => ({
-  resolveLabelIds: vi
-    .fn()
-    .mockImplementation(async (_sdk, names: string[]) =>
-      names.map((n) => `lbl-${n}`),
-    ),
+  findMissingLabelNames: vi.fn().mockResolvedValue([]),
   // lin-ufud: permissive variant returns `lbl-<name>` for known names and
   // skips `*missing*` so tests can model "user typed a nonexistent label".
   resolveLabelIdsPermissive: vi
@@ -77,7 +73,7 @@ vi.mock("../../../src/services/next-service.js", () => ({
 import { setupNextCommands } from "../../../src/commands/next.js";
 import { outputResult } from "../../../src/common/output.js";
 import {
-  resolveLabelIds,
+  findMissingLabelNames,
   resolveLabelIdsPermissive,
 } from "../../../src/resolvers/label-resolver.js";
 import { resolveStateIdByType } from "../../../src/resolvers/status-resolver.js";
@@ -127,7 +123,7 @@ describe("next (list mode)", () => {
 
     expect(resolveTeamId).toHaveBeenCalledWith(expect.anything(), "ENG");
     expect(resolveUserId).toHaveBeenCalledWith(expect.anything(), "ada");
-    expect(resolveLabelIds).toHaveBeenCalledWith(expect.anything(), [
+    expect(findMissingLabelNames).toHaveBeenCalledWith(expect.anything(), [
       "bug",
       "frontend",
     ]);
@@ -136,7 +132,7 @@ describe("next (list mode)", () => {
       assigneeId: "resolved-user-uuid",
       unassigned: false,
       priority: 2,
-      labelIds: ["lbl-bug", "lbl-frontend"],
+      labels: ["bug", "frontend"],
       typeLabel: "type:task",
       parentId: undefined,
       sort: "priority",
@@ -148,6 +144,36 @@ describe("next (list mode)", () => {
     // Read-only path goes through the text-default dispatcher; --json
     // delegates back to outputSuccess inside outputResult.
     expect(outputResult).toHaveBeenCalled();
+  });
+
+  it("accumulates repeated --label flags alongside the comma form", async () => {
+    const program = createProgram();
+    await program.parseAsync([
+      "node",
+      "test",
+      "next",
+      "--label",
+      "bug,frontend",
+      "--label",
+      "ux",
+    ]);
+
+    const call = vi.mocked(listNextIssues).mock.calls[0][1];
+    expect(call?.labels).toEqual(["bug", "frontend", "ux"]);
+  });
+
+  it("notes an unknown --label on stderr and still lists", async () => {
+    vi.mocked(findMissingLabelNames).mockResolvedValueOnce(["nope"]);
+    const program = createProgram();
+    await program.parseAsync(["node", "test", "next", "--label", "nope"]);
+
+    expect(console.error).toHaveBeenCalledWith(
+      'Warning: label "nope" does not exist, so no issue matches --label nope',
+    );
+    expect(vi.mocked(listNextIssues).mock.calls[0][1]?.labels).toEqual([
+      "nope",
+    ]);
+    expect(process.exit).not.toHaveBeenCalled();
   });
 
   it("uses unassigned filter when -u is set", async () => {
