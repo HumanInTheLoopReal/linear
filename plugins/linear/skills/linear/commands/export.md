@@ -5,7 +5,7 @@ argument-hint: [-o output-file] [-t team] [--all]
 
 Export Linear issues to JSON Lines (one JSON object per line) for snapshot / backup / migration use cases.
 
-`linear export` is an alias for `linear issues export`. The output is one issue per line with a stable field shape so downstream pipelines can rely on it.
+`linear export` is an alias for `linear issues export`. The output is one issue per line with a stable field shape so downstream pipelines can rely on it. Each line carries every comment on the issue; an issue with more comments than fit in the first page costs a few extra requests.
 
 ## Options
 

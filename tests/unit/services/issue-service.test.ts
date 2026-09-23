@@ -153,6 +153,11 @@ describe("comment page size per document", () => {
       "CompleteIssueWithCommentsFields",
     );
     expect(field.arguments ?? []).toEqual([]);
+    expect(
+      field.selectionSet?.selections.map((s) =>
+        s.kind === Kind.FIELD ? s.name.value : s.kind,
+      ),
+    ).toEqual(["nodes", "pageInfo"]);
   });
 });
 

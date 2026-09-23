@@ -617,14 +617,19 @@ fragment CompleteIssueWithDefaultCommentsFields on Issue {
 
 # Complete issue fragment with all relationships and comments
 #
-# Combines all issue fragments into a comprehensive field selection.
-# This is used when full issue details are needed including all
-# relationships (state, assignee, team, project, labels, comments).
+# Combines all issue fragments into a comprehensive field selection. Used by
+# the export query, which lists many issues per page, so the comment
+# connection keeps Linear's default page size; `pageInfo` tells the service
+# which issues need their remaining comments fetched one by one.
 fragment CompleteIssueWithCommentsFields on Issue {
   ...CompleteIssueFields
   comments {
     nodes {
       ...IssueReadCommentFields
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
     }
   }
 }
