@@ -54,7 +54,9 @@ Linear uses a two-level status model:
 
 - `state.type` — the **category**: `triage`, `backlog`, `unstarted`,
   `started`, `completed`, `canceled`, `duplicate`. This is the stable,
-  workspace-agnostic token to branch on.
+  workspace-agnostic token to branch on. `issues list`, `search` and
+  `count` filter on it server-side with `--state-type`, for example
+  `--state-type started,completed`.
 - `state.name` — the **workspace-specific label** ("Backlog", "In Review",
   "Done"), which varies per team.
 

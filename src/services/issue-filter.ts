@@ -43,6 +43,9 @@ export function buildIssueFilter(
   if (options.stateTypesExclude && options.stateTypesExclude.length > 0) {
     fragments.push({ state: { type: { nin: options.stateTypesExclude } } });
   }
+  if (options.stateTypeFilter && options.stateTypeFilter.length > 0) {
+    fragments.push({ state: { type: { in: options.stateTypeFilter } } });
+  }
   fragments.push(...labelFilterFragments(options.labels ?? []));
   if (options.labelPatternFilters && options.labelPatternFilters.length > 0) {
     // Each fragment is a complete `{ labels: {...} }` glob filter (lin-ym1m).

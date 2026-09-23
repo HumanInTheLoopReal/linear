@@ -16,6 +16,8 @@ export interface IssueFilterOptions {
   stateIds?: string[];
   stateTypes?: string[];
   stateTypesExclude?: string[];
+  /** Workflow-state types from `--state-type`, ANDed with any `--status`. */
+  stateTypeFilter?: string[];
   /**
    * Label names or UUIDs from `--label`. An issue must carry every one;
    * names match case-insensitively, so a name that exists nowhere yields an
@@ -69,6 +71,8 @@ export interface RawFilterFlags {
   creator?: string;
   project?: string;
   status?: string;
+  /** Comma-separated workflow-state types; see `ALL_STATE_TYPES`. */
+  stateType?: string;
   /** One entry per `--label` flag; each may itself be comma-separated. */
   label?: string[];
   /** Label-name glob (lin-ym1m), e.g. `type:*`. Mutually exclusive with `--label`. */

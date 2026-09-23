@@ -20,6 +20,7 @@ Full-text search across Linear issues. Matches `<query>` against the issue title
 - `--assignee <user>` / `--creator <user>`: Filter by person.
 - `--project <project>`: Filter by project.
 - `--status <statuses>`: Comma-separated workflow-state names (requires `--team`).
+- `--state-type <types>`: Comma-separated workflow-state types (`backlog`, `started`, `completed`, ...). Works without `--team`.
 - `--label <labels>`: Label names; comma-separated or repeated, and an issue must carry every one. An unknown label returns no results and a stderr warning.
 - `--cycle <cycle>` / `--milestone <ms>` / `--parent <issue>`: Scope further.
 - `--priority <0-4>` / `--estimate <n>`: Filter by metadata.

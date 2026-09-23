@@ -336,6 +336,10 @@ linear list --label bug --label critical --json   # same filter
 # A label that does not exist matches nothing: empty result, stderr warning.
 # Note: there is no --label-any (OR) flag. For OR semantics, run multiple
 # queries and union the results, or rely on Linear's web UI search.
+
+# State type: the workspace-wide lifecycle category, whatever the team
+# named the state. Server-side, no --team needed.
+linear list --all-teams --state-type started --json
 ```
 
 ### Search Command

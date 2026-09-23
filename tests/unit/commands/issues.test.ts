@@ -2018,6 +2018,41 @@ describe("issues list/search filters", () => {
     );
   });
 
+  it("filters by --state-type server-side without --team", async () => {
+    const program = createProgram();
+    await program.parseAsync([
+      "node",
+      "test",
+      "issues",
+      "list",
+      "--all-teams",
+      "--state-type",
+      "started,completed",
+    ]);
+
+    expect(listIssues).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      { and: [{ state: { type: { in: ["started", "completed"] } } }] },
+      { includeArchived: undefined },
+    );
+  });
+
+  it("rejects an unknown --state-type before any request", async () => {
+    const program = createProgram();
+    await program.parseAsync([
+      "node",
+      "test",
+      "issues",
+      "list",
+      "--state-type",
+      "doing",
+    ]);
+
+    expect(process.exit).toHaveBeenCalledWith(1);
+    expect(listIssues).not.toHaveBeenCalled();
+  });
+
   it("rejects an empty --defer-after/--defer-before window", async () => {
     const program = createProgram();
     await program.parseAsync([
