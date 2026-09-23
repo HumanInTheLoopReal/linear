@@ -39,7 +39,7 @@ returns, rather than a flattened or renamed projection:
 | `completedAt` | ISO-8601; `null` while open. |
 | `parent.identifier` | Parent issue (the `parent` object is `null` if none). |
 | `relations.nodes[]` / `inverseRelations.nodes[]` | Typed dependency edges — each carries a `type` and both endpoints (not a flat id list). |
-| `comments.nodes[]` | Comment connection. |
+| `comments.nodes[]` | Comment connection. A bare `issues read` carries the first 50 comments as `{id, body}`. `--with-comments` carries every comment, paged through server-side, plus `comments.pageInfo` with `hasNextPage: false`. `--with-comment-threads` carries every comment grouped into `replies`. |
 
 Counts are derived, not stored — e.g. `.relations.nodes | length`,
 `.inverseRelations.nodes | length`, `.comments.nodes | length`.

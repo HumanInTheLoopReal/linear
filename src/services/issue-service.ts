@@ -47,6 +47,8 @@ import {
   type GetIssueByIdWithReactionsQuery,
   GetIssueCommentCountsDocument,
   type GetIssueCommentCountsQuery,
+  GetIssueReadCommentsPageDocument,
+  type GetIssueReadCommentsPageQuery,
   type IssueCreateInput,
   type IssueFilter,
   type IssueUpdateInput,
@@ -268,6 +270,37 @@ export async function getIssue(
   return result.issue;
 }
 
+const COMMENT_PAGE_SIZE = 250;
+
+/**
+ * Follow `comments.pageInfo` until the issue's whole discussion is loaded.
+ * The read query carries the first page; the rest arrive here, so the
+ * returned `pageInfo.hasNextPage` is always false.
+ */
+async function withAllComments<
+  T extends IssueDetailWithComments | IssueByIdentifierWithComments,
+>(client: GraphQLClient, issue: T): Promise<T> {
+  const nodes = [...issue.comments.nodes];
+  let pageInfo = issue.comments.pageInfo;
+  while (pageInfo.hasNextPage) {
+    if (!pageInfo.endCursor) {
+      throw new Error(
+        `Linear reported more comments on issue "${issue.id}" without a page cursor`,
+      );
+    }
+    const page = await client.request<GetIssueReadCommentsPageQuery>(
+      GetIssueReadCommentsPageDocument,
+      { id: issue.id, first: COMMENT_PAGE_SIZE, after: pageInfo.endCursor },
+    );
+    if (!page.issue) {
+      throw new Error(`Issue with ID "${issue.id}" not found`);
+    }
+    nodes.push(...page.issue.comments.nodes);
+    pageInfo = page.issue.comments.pageInfo;
+  }
+  return { ...issue, comments: { nodes, pageInfo } };
+}
+
 export async function getIssueWithComments(
   client: GraphQLClient,
   id: string,
@@ -279,7 +312,7 @@ export async function getIssueWithComments(
   if (!result.issue) {
     throw new Error(`Issue with ID "${id}" not found`);
   }
-  return result.issue;
+  return withAllComments(client, result.issue);
 }
 
 export async function getIssueWithCommentThreads(
@@ -321,7 +354,7 @@ export async function getIssueByIdentifierWithComments(
       `Issue with identifier "${teamKey}-${issueNumber}" not found`,
     );
   }
-  return result.issues.nodes[0];
+  return withAllComments(client, result.issues.nodes[0]);
 }
 
 export async function getIssueByIdentifierWithCommentThreads(

@@ -13,7 +13,7 @@ Display the full record for one Linear issue: title, description, status, priori
 
 ## Options
 
-- `--with-comments`: Include the full comment list (root threads + replies, flattened).
+- `--with-comments`: Include every comment (root threads + replies, flattened). The CLI pages through long discussions, so nothing is cut off; `comments.pageInfo.hasNextPage` is always `false`. Without this flag the read carries only the first 50 comments as `{id, body}`.
 - `--with-comment-threads`: Same data, but group replies under their root thread instead of flattening.
 - `--with-attachments`: Include attachments attached to the issue.
 - `--with-reactions`: Include reactions on the root issue.

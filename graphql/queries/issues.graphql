@@ -629,6 +629,39 @@ fragment CompleteIssueWithCommentsFields on Issue {
   }
 }
 
+# Complete issue fragment with the first page of comments and its cursor
+#
+# Used by `issues read --with-comments` / `--with-comment-threads`. The
+# service follows `comments.pageInfo` with GetIssueReadCommentsPage until
+# every comment is loaded, so callers always receive the full discussion.
+fragment CompleteIssueWithPagedCommentsFields on Issue {
+  ...CompleteIssueFields
+  comments(first: 250) {
+    nodes {
+      ...IssueReadCommentFields
+    }
+    pageInfo {
+      hasNextPage
+      endCursor
+    }
+  }
+}
+
+# Next page of an issue's comments, in the issue-read comment shape
+query GetIssueReadCommentsPage($id: String!, $first: Int!, $after: String) {
+  issue(id: $id) {
+    comments(first: $first, after: $after) {
+      nodes {
+        ...IssueReadCommentFields
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
+    }
+  }
+}
+
 # Complete issue fragment with all relationships, default comments, and reactions
 fragment CompleteIssueWithReactionsFields on Issue {
   ...CompleteIssueWithDefaultCommentsFields
@@ -814,7 +847,7 @@ query GetIssueByIdentifier($teamKey: String!, $number: Float!) {
 # Get single issue by UUID with full comments
 query GetIssueByIdWithComments($id: String!) {
   issue(id: $id) {
-    ...CompleteIssueWithCommentsFields
+    ...CompleteIssueWithPagedCommentsFields
   }
 }
 
@@ -825,7 +858,7 @@ query GetIssueByIdentifierWithComments($teamKey: String!, $number: Float!) {
     first: 1
   ) {
     nodes {
-      ...CompleteIssueWithCommentsFields
+      ...CompleteIssueWithPagedCommentsFields
     }
   }
 }

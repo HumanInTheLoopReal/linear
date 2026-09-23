@@ -234,7 +234,7 @@ linear read <id> --json                   # alias
 
 # Include extra sections (--long does NOT exist; use these instead):
 linear show <id> --with-attachments      # attach list
-linear show <id> --with-comments         # flat comments
+linear show <id> --with-comments         # every comment, flat
 linear show <id> --with-comment-threads  # threaded comments
 linear show <id> --with-reactions        # root-issue reactions
 ```

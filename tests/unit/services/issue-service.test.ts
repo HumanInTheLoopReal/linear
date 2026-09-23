@@ -13,6 +13,8 @@ import {
   GetIssueByIdWithAttachmentsDocument,
   GetIssueByIdWithCommentsDocument,
   GetIssueByIdWithReactionsDocument,
+  GetIssueReadCommentsPageDocument,
+  ListIssuesForExportDocument,
   PaginationOrderBy,
   SearchIssuesDocument,
   UnarchiveIssueDocument,
@@ -119,6 +121,38 @@ describe("issue URL on read, list and search documents", () => {
       )
       .map((selection) => selection.name.value);
     expect(fields).toContain("url");
+  });
+});
+
+describe("comment page size per document", () => {
+  function commentsField(document: DocumentNode, fragmentName: string) {
+    const field = getFragment(
+      document,
+      fragmentName,
+    ).selectionSet.selections.find(
+      (selection) =>
+        selection.kind === Kind.FIELD && selection.name.value === "comments",
+    );
+    if (field?.kind !== Kind.FIELD) {
+      throw new Error(`comments not selected in ${fragmentName}`);
+    }
+    return field;
+  }
+
+  it("pages issue reads 250 comments at a time", () => {
+    const field = commentsField(
+      GetIssueByIdWithCommentsDocument,
+      "CompleteIssueWithPagedCommentsFields",
+    );
+    expect(field.arguments?.map((arg) => arg.name.value)).toEqual(["first"]);
+  });
+
+  it("keeps the 100-issue export page on the default comment page", () => {
+    const field = commentsField(
+      ListIssuesForExportDocument,
+      "CompleteIssueWithCommentsFields",
+    );
+    expect(field.arguments ?? []).toEqual([]);
   });
 });
 
@@ -450,6 +484,7 @@ describe("getIssueWithComments", () => {
               user: { id: "user-1", displayName: "Ada" },
             },
           ],
+          pageInfo: { hasNextPage: false, endCursor: null },
         },
       },
     });
@@ -491,6 +526,7 @@ describe("getIssueByIdentifierWithComments", () => {
                   user: { id: "user-1", displayName: "Ada" },
                 },
               ],
+              pageInfo: { hasNextPage: false, endCursor: null },
             },
           },
         ],
@@ -558,6 +594,7 @@ describe("getIssueWithCommentThreads", () => {
               user: { id: "user-4", displayName: "Dee" },
             },
           ],
+          pageInfo: { hasNextPage: false, endCursor: null },
         },
       },
     });
@@ -604,6 +641,7 @@ describe("getIssueByIdentifierWithCommentThreads", () => {
                   user: { id: "user-2", displayName: "Bea" },
                 },
               ],
+              pageInfo: { hasNextPage: false, endCursor: null },
             },
           },
         ],
@@ -623,6 +661,149 @@ describe("getIssueByIdentifierWithCommentThreads", () => {
         teamKey: "ENG",
         number: 42,
       },
+    );
+  });
+});
+
+describe("comment paging on issue reads", () => {
+  function comment(id: string) {
+    return {
+      id,
+      body: id,
+      createdAt: "2026-04-23T12:00:00.000Z",
+      editedAt: null,
+      parentId: null,
+      user: { id: "user-1", displayName: "Ada" },
+    };
+  }
+
+  it("follows comments.pageInfo until every comment is loaded", async () => {
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce({
+        issue: {
+          id: "issue-1",
+          comments: {
+            nodes: [comment("c1")],
+            pageInfo: { hasNextPage: true, endCursor: "cursor-1" },
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        issue: {
+          comments: {
+            nodes: [comment("c2")],
+            pageInfo: { hasNextPage: true, endCursor: "cursor-2" },
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        issue: {
+          comments: {
+            nodes: [comment("c3")],
+            pageInfo: { hasNextPage: false, endCursor: "cursor-3" },
+          },
+        },
+      });
+    const client = { request } as unknown as GraphQLClient;
+
+    const result = await getIssueWithComments(client, "issue-1");
+
+    expect(result.comments.nodes.map((c) => c.id)).toEqual(["c1", "c2", "c3"]);
+    expect(result.comments.pageInfo).toEqual({
+      hasNextPage: false,
+      endCursor: "cursor-3",
+    });
+    expect(request).toHaveBeenNthCalledWith(
+      2,
+      GetIssueReadCommentsPageDocument,
+      { id: "issue-1", first: 250, after: "cursor-1" },
+    );
+    expect(request).toHaveBeenNthCalledWith(
+      3,
+      GetIssueReadCommentsPageDocument,
+      { id: "issue-1", first: 250, after: "cursor-2" },
+    );
+  });
+
+  it("pages identifier reads by the resolved issue id and threads every page", async () => {
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce({
+        issues: {
+          nodes: [
+            {
+              id: "issue-1",
+              comments: {
+                nodes: [comment("root")],
+                pageInfo: { hasNextPage: true, endCursor: "cursor-1" },
+              },
+            },
+          ],
+        },
+      })
+      .mockResolvedValueOnce({
+        issue: {
+          comments: {
+            nodes: [{ ...comment("reply"), parentId: "root" }],
+            pageInfo: { hasNextPage: false, endCursor: "cursor-2" },
+          },
+        },
+      });
+    const client = { request } as unknown as GraphQLClient;
+
+    const result = await getIssueByIdentifierWithCommentThreads(
+      client,
+      "ENG",
+      42,
+    );
+
+    expect(result.comments.nodes).toHaveLength(1);
+    expect(result.comments.nodes[0].replies.map((r) => r.id)).toEqual([
+      "reply",
+    ]);
+    expect(request).toHaveBeenLastCalledWith(GetIssueReadCommentsPageDocument, {
+      id: "issue-1",
+      first: 250,
+      after: "cursor-1",
+    });
+  });
+
+  it("fails rather than refetching the first page when the cursor is missing", async () => {
+    const request = vi.fn().mockResolvedValueOnce({
+      issue: {
+        id: "issue-1",
+        comments: {
+          nodes: [comment("c1")],
+          pageInfo: { hasNextPage: true, endCursor: null },
+        },
+      },
+    });
+    const client = { request } as unknown as GraphQLClient;
+
+    await expect(getIssueWithComments(client, "issue-1")).rejects.toThrow(
+      "without a page cursor",
+    );
+    expect(request).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails rather than returning a partial discussion when a page is missing", async () => {
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce({
+        issue: {
+          id: "issue-1",
+          comments: {
+            nodes: [comment("c1")],
+            pageInfo: { hasNextPage: true, endCursor: "cursor-1" },
+          },
+        },
+      })
+      .mockResolvedValueOnce({ issue: null });
+    const client = { request } as unknown as GraphQLClient;
+
+    await expect(getIssueWithComments(client, "issue-1")).rejects.toThrow(
+      'Issue with ID "issue-1" not found',
     );
   });
 });
