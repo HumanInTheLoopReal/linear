@@ -2571,7 +2571,7 @@ one with \`linear config set team.default <key>\` or LINEAR_TEAM.`,
     )
     .option(
       "--with-comment-counts",
-      "include a per-issue comment count (commentCount) in each result; one batched query for the page (no N+1), matching `issues list --with-comment-counts`",
+      "include a per-issue comment count (commentCount) in each result, counted the same way as `issues list --with-comment-counts`",
     )
     .addHelpText(
       "after",
@@ -2664,7 +2664,7 @@ one with \`linear config set team.default <key>\` or LINEAR_TEAM.`,
 
         // Enrich AFTER metadata-filter + sort + slice so we count comments only
         // for the rows that actually ship — and only when asked. Reuses the
-        // same batched, no-N+1 helper as `issues list`. (lin-ov30.8)
+        // same batched helper as `issues list`. (lin-ov30.8)
         const enriched = await attachCommentCounts(
           ctx,
           { nodes: limited, pageInfo: result.pageInfo },

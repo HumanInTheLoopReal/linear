@@ -13,6 +13,7 @@ import {
   GetIssueByIdWithAttachmentsDocument,
   GetIssueByIdWithCommentsDocument,
   GetIssueByIdWithReactionsDocument,
+  GetIssueCommentIdsPageDocument,
   GetIssueReadCommentsPageDocument,
   ListIssuesForExportDocument,
   PaginationOrderBy,
@@ -24,6 +25,7 @@ import {
   archiveIssue,
   createIssue,
   deleteIssue,
+  getCommentCountsByIssueIds,
   getEditableFieldValue,
   getIssue,
   getIssueByIdentifier,
@@ -158,6 +160,130 @@ describe("comment page size per document", () => {
         s.kind === Kind.FIELD ? s.name.value : s.kind,
       ),
     ).toEqual(["nodes", "pageInfo"]);
+  });
+});
+
+describe("getCommentCountsByIssueIds", () => {
+  function ids(prefix: string, n: number) {
+    return Array.from({ length: n }, (_, i) => ({ id: `${prefix}${i}` }));
+  }
+
+  it("counts past the first 250 comments by paging ids for that issue only", async () => {
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce({
+        issues: {
+          nodes: [
+            {
+              id: "busy",
+              comments: {
+                nodes: ids("a", 250),
+                pageInfo: { hasNextPage: true, endCursor: "cursor-1" },
+              },
+            },
+            {
+              id: "quiet",
+              comments: {
+                nodes: ids("q", 3),
+                pageInfo: { hasNextPage: false, endCursor: "q2" },
+              },
+            },
+          ],
+        },
+      })
+      .mockResolvedValueOnce({
+        issue: {
+          comments: {
+            nodes: ids("b", 250),
+            pageInfo: { hasNextPage: true, endCursor: "cursor-2" },
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        issue: {
+          comments: {
+            nodes: ids("c", 7),
+            pageInfo: { hasNextPage: false, endCursor: "cursor-3" },
+          },
+        },
+      });
+    const client = { request } as unknown as GraphQLClient;
+
+    const counts = await getCommentCountsByIssueIds(client, ["busy", "quiet"]);
+
+    expect(counts).toEqual(
+      new Map([
+        ["busy", 507],
+        ["quiet", 3],
+      ]),
+    );
+    expect(request).toHaveBeenCalledTimes(3);
+    expect(request).toHaveBeenNthCalledWith(2, GetIssueCommentIdsPageDocument, {
+      id: "busy",
+      first: 250,
+      after: "cursor-1",
+    });
+    expect(request).toHaveBeenNthCalledWith(3, GetIssueCommentIdsPageDocument, {
+      id: "busy",
+      first: 250,
+      after: "cursor-2",
+    });
+  });
+
+  it("keeps the count so far when an issue is deleted mid-count", async () => {
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce({
+        issues: {
+          nodes: [
+            {
+              id: "gone",
+              comments: {
+                nodes: ids("a", 250),
+                pageInfo: { hasNextPage: true, endCursor: "cursor-1" },
+              },
+            },
+            {
+              id: "kept",
+              comments: {
+                nodes: ids("k", 4),
+                pageInfo: { hasNextPage: false, endCursor: "k3" },
+              },
+            },
+          ],
+        },
+      })
+      .mockResolvedValueOnce({ issue: null });
+    const client = { request } as unknown as GraphQLClient;
+
+    expect(await getCommentCountsByIssueIds(client, ["gone", "kept"])).toEqual(
+      new Map([
+        ["gone", 250],
+        ["kept", 4],
+      ]),
+    );
+  });
+
+  it("makes one request when no issue has more than one page", async () => {
+    const request = vi.fn().mockResolvedValueOnce({
+      issues: {
+        nodes: [
+          {
+            id: "i1",
+            comments: {
+              nodes: ids("x", 2),
+              pageInfo: { hasNextPage: false, endCursor: "x1" },
+            },
+          },
+        ],
+      },
+    });
+    const client = { request } as unknown as GraphQLClient;
+
+    expect(await getCommentCountsByIssueIds(client, ["i1"])).toEqual(
+      new Map([["i1", 2]]),
+    );
+    expect(request).toHaveBeenCalledTimes(1);
   });
 });
 
