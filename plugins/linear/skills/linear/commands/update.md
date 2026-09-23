@@ -18,7 +18,7 @@ Update one Linear issue: title, description, status, priority, assignee, labels,
 - `--body-file <path>` / `--stdin`: Read new description from file or stdin.
 - `--status <status>`: Workflow-state name (e.g. `In Progress`, `Done`).
 - `--priority <1-4>`: 1=urgent, 2=high, 3=medium, 4=low.
-- `--assignee <user>`: Email or display name. To **unassign**, use `linear assign <id> ""` — `--assignee ""` on `update` is silently ignored.
+- `--assignee <user>` / `--clear-assignee`: Set the assignee (email or display name), or unassign the issue. `--assignee ""` is silently ignored; use `--clear-assignee`.
 
 ## Labels
 
@@ -63,6 +63,9 @@ linear update ENG-42 --priority 1
 # Reassign + transition + comment in one shot is split: update for the fields,
 # /linear:comments for the note.
 linear update ENG-42 --assignee fahad --status "In Progress"
+
+# Unassign
+linear update ENG-42 --clear-assignee
 
 # Replace body from a file
 linear update ENG-42 --body-file ./new-description.md

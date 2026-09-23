@@ -4129,6 +4129,42 @@ describe("issues update --assignee", () => {
     );
   });
 
+  it("clears the assignee with --clear-assignee", async () => {
+    const program = createProgram();
+    await program.parseAsync([
+      "node",
+      "test",
+      "issues",
+      "update",
+      "ENG-42",
+      "--clear-assignee",
+    ]);
+
+    expect(resolveUserId).not.toHaveBeenCalled();
+    expect(updateIssue).toHaveBeenCalledWith(
+      expect.anything(),
+      "resolved-issue-uuid",
+      expect.objectContaining({ assigneeId: null }),
+    );
+  });
+
+  it("rejects --assignee together with --clear-assignee", async () => {
+    const program = createProgram();
+    await program.parseAsync([
+      "node",
+      "test",
+      "issues",
+      "update",
+      "ENG-42",
+      "--assignee",
+      "Jane Smith",
+      "--clear-assignee",
+    ]);
+
+    expect(process.exit).toHaveBeenCalledWith(1);
+    expect(updateIssue).not.toHaveBeenCalled();
+  });
+
   it("does not call resolveUserId when --assignee is omitted", async () => {
     const program = createProgram();
     await program.parseAsync([

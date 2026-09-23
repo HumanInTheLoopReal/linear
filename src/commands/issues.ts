@@ -284,6 +284,7 @@ interface UpdateOptions {
   estimate?: string;
   clearEstimate?: boolean;
   assignee?: string;
+  clearAssignee?: boolean;
   project?: string;
   labels?: string;
   labelMode?: string;
@@ -3146,6 +3147,7 @@ one with \`linear config set team.default <key>\` or LINEAR_TEAM.`,
     .option("--status <status>", "new status")
     .option("--priority <1-4>", "new priority")
     .option("--assignee <user>", "new assignee")
+    .option("--clear-assignee", "unassign the issue")
     .option("--project <project>", "new project")
     .option("--labels <labels>", "labels to apply (comma-separated)")
     .option("--label-mode <mode>", "add | overwrite")
@@ -3216,6 +3218,12 @@ one with \`linear config set team.default <key>\` or LINEAR_TEAM.`,
 
         if (options.cycle && options.clearCycle) {
           throw new Error("Cannot use --cycle and --clear-cycle together");
+        }
+
+        if (options.assignee !== undefined && options.clearAssignee) {
+          throw new Error(
+            "Cannot use --assignee and --clear-assignee together",
+          );
         }
 
         if (options.dueDate && options.clearDueDate) {
@@ -3433,7 +3441,9 @@ one with \`linear config set team.default <key>\` or LINEAR_TEAM.`,
           input.estimate = parsedEstimate;
         }
 
-        if (options.assignee) {
+        if (options.clearAssignee) {
+          input.assigneeId = null;
+        } else if (options.assignee) {
           input.assigneeId = await resolveUserId(ctx.sdk, options.assignee);
         }
 
