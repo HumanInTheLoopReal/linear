@@ -83,6 +83,19 @@ describe("buildIssueFilter", () => {
     });
   });
 
+  it("ANDs a --state-type filter with a --status alias filter", () => {
+    const result = buildIssueFilter({
+      stateTypes: ["triage", "backlog", "unstarted"],
+      stateTypeFilter: ["backlog"],
+    });
+    expect(result).toEqual({
+      and: [
+        { state: { type: { in: ["triage", "backlog", "unstarted"] } } },
+        { state: { type: { in: ["backlog"] } } },
+      ],
+    });
+  });
+
   it("builds cycle filter", () => {
     const result = buildIssueFilter({ cycleId: "cycle-uuid" });
     expect(result).toEqual({

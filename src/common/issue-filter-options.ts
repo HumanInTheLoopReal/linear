@@ -9,6 +9,7 @@ import {
   validateFilterDependencies,
   validatePriority,
 } from "./issue-filter.js";
+import { ALL_STATE_TYPES } from "./issue-lifecycle.js";
 import { globToLabelFilter, LabelGlobError } from "./label-glob.js";
 
 export interface IssueFilterReferences {
@@ -36,6 +37,7 @@ type DirectIssueFilterOptionKey =
   | "hasBlockers"
   | "isBlocking"
   | "labels"
+  | "stateTypeFilter"
   | "labelPatternFilters";
 
 export type DirectIssueFilterOptions = Pick<
@@ -100,6 +102,22 @@ function compileLabelPattern(
   }
 }
 
+function parseStateTypes(value: string | undefined): string[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const known: readonly string[] = ALL_STATE_TYPES;
+  const types = parseCommaSeparated(value).map((t) => t.toLowerCase());
+  const unknown = types.filter((t) => !known.includes(t));
+  if (unknown.length > 0) {
+    throw invalidParameterError(
+      "--state-type",
+      `unknown state type "${unknown.join(", ")}" (expected one of: ${known.join(", ")})`,
+    );
+  }
+  return types;
+}
+
 /**
  * Parses and validates raw issue filter flags without reading configuration or
  * making API calls. The caller supplies the already-resolved default team so
@@ -127,6 +145,7 @@ export function normalizeIssueFilterOptions(
     ?.filter((value) => value !== "")
     .flatMap(parseCommaSeparated);
   const labelNames = parsedLabels?.length ? parsedLabels : undefined;
+  const stateTypeFilter = parseStateTypes(opts.stateType);
   const labelPatternFilters = compileLabelPattern(
     opts.labelPattern,
     labelNames,
@@ -191,6 +210,7 @@ export function normalizeIssueFilterOptions(
       hasBlockers: opts.hasBlockers,
       isBlocking: opts.isBlocking,
       labels: labelNames,
+      stateTypeFilter,
       labelPatternFilters,
     },
   };

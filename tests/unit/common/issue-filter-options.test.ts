@@ -34,6 +34,7 @@ describe("normalizeIssueFilterOptions", () => {
       hasBlockers: true,
       isBlocking: false,
       labels: undefined,
+      stateTypeFilter: undefined,
       labelPatternFilters: undefined,
     });
   });
@@ -83,6 +84,23 @@ describe("normalizeIssueFilterOptions", () => {
       "area:cli",
       "area:api",
     ]);
+  });
+
+  it("parses --state-type without requiring a team", () => {
+    const result = normalizeIssueFilterOptions({
+      stateType: "Started, backlog",
+    });
+
+    expect(result.directOptions.stateTypeFilter).toEqual([
+      "started",
+      "backlog",
+    ]);
+  });
+
+  it("rejects an unknown --state-type", () => {
+    expect(() =>
+      normalizeIssueFilterOptions({ stateType: "started,doing" }),
+    ).toThrow(/unknown state type "doing"/);
   });
 
   it("uses a supplied default team when no team flag is present", () => {

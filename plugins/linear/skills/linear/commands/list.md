@@ -11,7 +11,8 @@ List Linear issues with optional filtering. The default view includes every non-
 
 - `--team <team>`: Filter by team (key, name, or UUID). Defaults to `team.default` config or the `LINEAR_TEAM` env var.
 - `--all-teams`: Ignore the default team and scan the whole workspace.
-- `--status <statuses>`: Comma-separated workflow-state names (requires `--team`, because state names live on a team).
+- `--status <statuses>`: Comma-separated workflow-state names (requires `--team`, because state names live on a team), or the logical aliases `open`, `in_progress`, `active`, `closed`, `all`.
+- `--state-type <types>`: Comma-separated workflow-state types (`triage`, `backlog`, `unstarted`, `started`, `completed`, `canceled`, `duplicate`). Filtered server-side, works without `--team`, and ANDs with `--status`.
 - `--priority <0-4>`: 0=no priority, 1=urgent, 2=high, 3=medium, 4=low.
 - `--label <labels>`: Label names or UUIDs. Comma-separate them, repeat the flag, or both; an issue must carry every one (AND). Names match case-insensitively. A label that does not exist matches nothing, so the result is empty and a warning goes to stderr.
 - `--assignee <user>`: Email or display name.
@@ -52,6 +53,9 @@ linear list --all-teams --priority 1
 # Backend bugs assigned to alice
 linear list --label backend,bug --assignee alice
 linear list --label backend --label bug --assignee alice   # same filter
+
+# Everything in progress, whatever each team calls that state
+linear list --all-teams --state-type started
 
 # Everything that landed yesterday
 linear list --completed-after 2026-05-16 --completed-before 2026-05-17

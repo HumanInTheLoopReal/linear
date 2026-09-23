@@ -103,6 +103,10 @@ export function addFilterOptions(
       "filter by status (comma-separated). logical aliases (open, closed, in_progress, active, all) work workspace-wide; team-specific state names require --team. by default `list` hides terminal + archived issues; use `--status all` to surface them. run `linear issues statuses --team <team>` to enumerate.",
     )
     .option(
+      "--state-type <types>",
+      "filter by workflow-state type (comma-separated): triage, backlog, unstarted, started, completed, canceled, duplicate. works workspace-wide, server-side, and ANDs with --status",
+    )
+    .option(
       "--label <labels>",
       "only issues carrying every listed label (comma-separated, repeatable). a label that does not exist matches nothing and is noted on stderr",
       (value: string, previous: string[] = []) => [...previous, value],
@@ -321,7 +325,9 @@ export function registerIssueReportCommands(issues: Command): void {
       );
       warnMissingLabels(filterOptions.missingLabels);
       const includeClosedInText =
-        options.status !== undefined || Boolean(filterOptions.includeArchived);
+        options.status !== undefined ||
+        options.stateType !== undefined ||
+        Boolean(filterOptions.includeArchived);
       const baseFilter = buildIssueFilter(filterOptions);
       const scope = resolveScopeOption(options.scope);
       const filter = applyScopeToFilter(baseFilter, scope);
@@ -395,6 +401,7 @@ export function registerIssueReportCommands(issues: Command): void {
         const hasExplicitStateFilter = Boolean(
           filterOptions.stateIds?.length ||
             filterOptions.stateTypes?.length ||
+            filterOptions.stateTypeFilter?.length ||
             filterOptions.stateTypesExclude?.length,
         );
         const shouldApplyDefaultOpenFilter =
