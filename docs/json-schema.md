@@ -27,6 +27,7 @@ returns, rather than a flattened or renamed projection:
 |-------|---------|
 | `id` | Linear UUID. |
 | `identifier` | Human key (e.g. `ENG-12`). Prefer this for display and lookups. |
+| `url` | The issue's page in the Linear app. On `issues read`, `list`, `search`, `create` and `update`. |
 | `title` | Issue title. |
 | `description` | Markdown body. |
 | `state.type` | Lifecycle **category** (stable, workspace-agnostic) — branch on this. See *Status model*. |

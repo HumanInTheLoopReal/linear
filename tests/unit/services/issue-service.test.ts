@@ -107,6 +107,21 @@ describe("attachment issue read documents", () => {
   });
 });
 
+describe("issue URL on read, list and search documents", () => {
+  it.each([
+    [GetIssueByIdDocument, "CompleteIssueFields"],
+    [FilteredSearchIssuesDocument, "CompleteIssueFields"],
+    [SearchIssuesDocument, "CompleteIssueSearchFields"],
+  ])("selects url in %#", (document, fragmentName) => {
+    const fields = getFragment(document, fragmentName)
+      .selectionSet.selections.filter(
+        (selection) => selection.kind === Kind.FIELD,
+      )
+      .map((selection) => selection.name.value);
+    expect(fields).toContain("url");
+  });
+});
+
 describe("listIssues", () => {
   it("returns issues from query", async () => {
     const client = mockGqlClient({
