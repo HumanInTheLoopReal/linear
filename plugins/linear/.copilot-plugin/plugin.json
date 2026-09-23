@@ -1,7 +1,7 @@
 {
   "name": "linear",
   "description": "AI-supervised CLI for Linear.app. Manage issues, discover work, recover context after compaction.",
-  "version": "2026.8.3",
+  "version": "2026.9.0",
   "author": {
     "name": "Linear CLI maintainers",
     "url": "https://github.com/HumanInTheLoopReal/linear"

@@ -1,6 +1,6 @@
 {
   "name": "@humanintheloop/linear",
-  "version": "2026.8.3",
+  "version": "2026.9.0",
   "description": "AI-first JSON CLI for Linear.app",
   "main": "dist/main.js",
   "type": "module",

@@ -1,5 +1,18 @@
 # Changelog
 
+## [2026.9.0](https://github.com/HumanInTheLoopReal/linear/compare/v2026.8.3...v2026.9.0) (2026-09-23)
+
+### Features
+
+* filter issues by workflow-state type with --state-type ([93fbe44](https://github.com/HumanInTheLoopReal/linear/commit/93fbe448bcfaddbe03215db6e0242c1cef915769))
+* include each issue's url in the json output ([cb9fb97](https://github.com/HumanInTheLoopReal/linear/commit/cb9fb9773a3aba41b34bd47e1ff2c0f9ceba6884))
+* unassign an issue with issues update --clear-assignee ([5938cf8](https://github.com/HumanInTheLoopReal/linear/commit/5938cf8f241e92483de617dc67cfb9666f994282))
+
+### Bug Fixes
+
+* make --label require every label and tolerate unknown ones ([141d2b3](https://github.com/HumanInTheLoopReal/linear/commit/141d2b3a990a6415cd1b74aad8d04fac87bd3337))
+* return every comment on issues read --with-comments ([8548a00](https://github.com/HumanInTheLoopReal/linear/commit/8548a008006b40c4adfd4ecdd84dfcf7f2d5ad79))
+
 ## [2026.8.3](https://github.com/HumanInTheLoopReal/linear/compare/v2026.8.2...v2026.8.3) (2026-08-11)
 
 ### Features
