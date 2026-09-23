@@ -1553,8 +1553,8 @@ query CountOpenIssues($first: Int!, $after: String) {
 # Per-issue comment counts for a set of issue IDs, fetched in ONE request to
 # back `issues list --with-comment-counts` (lin-ov30.7). Linear's
 # CommentConnection exposes no `totalCount`, so we count nested comment nodes
-# in the same request — still no per-issue (N+1) fan-out. The inner `first`
-# bounds pathological comment volumes; counts above the cap saturate.
+# in the same request. Only an issue whose first 250 comments report
+# `hasNextPage` gets follow-up requests, via GetIssueCommentIdsPage.
 query GetIssueCommentCounts($filter: IssueFilter, $first: Int!) {
   issues(filter: $filter, first: $first) {
     nodes {
@@ -1563,6 +1563,25 @@ query GetIssueCommentCounts($filter: IssueFilter, $first: Int!) {
         nodes {
           id
         }
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+      }
+    }
+  }
+}
+
+# Next page of an issue's comment ids, for counting past the first page
+query GetIssueCommentIdsPage($id: String!, $first: Int!, $after: String) {
+  issue(id: $id) {
+    comments(first: $first, after: $after) {
+      nodes {
+        id
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
       }
     }
   }

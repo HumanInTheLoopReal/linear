@@ -47,6 +47,8 @@ import {
   type GetIssueByIdWithReactionsQuery,
   GetIssueCommentCountsDocument,
   type GetIssueCommentCountsQuery,
+  GetIssueCommentIdsPageDocument,
+  type GetIssueCommentIdsPageQuery,
   GetIssueReadCommentsPageDocument,
   type GetIssueReadCommentsPageQuery,
   type IssueCreateInput,
@@ -268,15 +270,16 @@ async function fetchRemainingComments<N>(
 }
 
 /**
- * Per-issue comment counts for a batch of issue IDs, fetched in a SINGLE
- * request (no N+1 fan-out) to back `issues list --with-comment-counts`
- * (lin-ov30.7). Batched comment-count lookup for the page (avoids N+1).
+ * Per-issue comment counts for a batch of issue IDs, backing
+ * `issues list --with-comment-counts` (lin-ov30.7). One batched request
+ * covers the whole page; only an issue with more than 250 comments gets
+ * follow-up requests, which page comment ids alone.
  *
  * Linear's `CommentConnection` exposes no `totalCount`, so the count is the
- * length of the nested `comments` nodes the same query returns. The inner
- * projection caps at 250 comments/issue (see `GetIssueCommentCounts`); an
- * issue past that saturates at 250. Returns a map keyed by issue id; ids with
- * no comments (or absent from the response) resolve to 0 at the call site.
+ * number of comment nodes returned. An issue deleted between the batch and a
+ * follow-up page keeps the count reached so far rather than failing the
+ * listing. Returns a map keyed by issue id; ids absent from the response
+ * resolve to 0 at the call site.
  */
 export async function getCommentCountsByIssueIds(
   client: GraphQLClient,
@@ -289,7 +292,23 @@ export async function getCommentCountsByIssueIds(
     { filter: { id: { in: issueIds } }, first: issueIds.length },
   );
   for (const node of result.issues?.nodes ?? []) {
-    counts.set(node.id, node.comments?.nodes?.length ?? 0);
+    const rest = await fetchRemainingComments(
+      node.id,
+      node.comments.pageInfo,
+      async (after) => {
+        const page = await client.request<GetIssueCommentIdsPageQuery>(
+          GetIssueCommentIdsPageDocument,
+          { id: node.id, first: COMMENT_PAGE_SIZE, after },
+        );
+        return (
+          page.issue?.comments ?? {
+            nodes: [],
+            pageInfo: { hasNextPage: false },
+          }
+        );
+      },
+    );
+    counts.set(node.id, node.comments.nodes.length + rest.nodes.length);
   }
   return counts;
 }

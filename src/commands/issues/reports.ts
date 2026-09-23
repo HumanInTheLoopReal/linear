@@ -300,7 +300,7 @@ export function registerIssueReportCommands(issues: Command): void {
       .option("--after <cursor>", "cursor for next page")
       .option(
         "--with-comment-counts",
-        "include a per-issue comment count (commentCount) in each row; one batched query for the page (no N+1)",
+        "include a per-issue comment count (commentCount) in each row; one batched query for the page, plus follow-up requests only for issues with more than 250 comments",
       ),
   ).action(
     handleCommand(async (...args: unknown[]) => {
