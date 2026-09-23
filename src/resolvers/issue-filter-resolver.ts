@@ -4,7 +4,7 @@ import { mapLogicalStatus } from "../common/issue-filter.js";
 import type { IssueFilterReferences } from "../common/issue-filter-options.js";
 import { resolveCycleId } from "./cycle-resolver.js";
 import { resolveIssueId } from "./issue-resolver.js";
-import { resolveLabelIds } from "./label-resolver.js";
+import { findMissingLabelNames } from "./label-resolver.js";
 import { resolveProjectId } from "./project-resolver.js";
 import { resolveStatusId } from "./status-resolver.js";
 import { resolveTeamId } from "./team-resolver.js";
@@ -19,7 +19,7 @@ export interface SearchFilterResolution {
   projectId?: string;
   stateIds?: string[];
   stateTypes?: string[];
-  labelIds?: string[];
+  missingLabels?: string[];
   cycleId?: string;
   parentId?: string;
   /** Set when --status all is detected; relaxes server-side archived hiding. */
@@ -94,7 +94,10 @@ export async function resolveSearchFilterIds(
   }
 
   if (input.labelNames && input.labelNames.length > 0) {
-    resolved.labelIds = await resolveLabelIds(sdkClient, input.labelNames);
+    resolved.missingLabels = await findMissingLabelNames(
+      sdkClient,
+      input.labelNames,
+    );
   }
 
   if (input.cycle) {

@@ -151,6 +151,7 @@ import {
   attachCommentCounts,
   type FilterOptions,
   registerIssueReportCommands,
+  warnMissingLabels,
 } from "./issues/reports.js";
 import { registerIssueSnapshotCommands } from "./issues/snapshots.js";
 import { registerIssueTransferCommands } from "./issues/transfer.js";
@@ -2294,6 +2295,7 @@ is already set to the requested value.`,
         prepareIssueFilterOptions(options),
         ctx.gql,
       );
+      warnMissingLabels(filterOptions.missingLabels);
       const baseFilter = buildIssueFilter(filterOptions);
       const scope = resolveScopeOption(options.scope);
       const filter = applyScopeToFilter(baseFilter, scope);

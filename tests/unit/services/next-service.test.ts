@@ -55,7 +55,7 @@ describe("listNextIssues", () => {
       teamId: "t-1",
       assigneeId: "u-1",
       priority: 2,
-      labelIds: ["l-1", "l-2"],
+      labels: ["bug", "550e8400-e29b-41d4-a716-446655440000"],
       typeLabel: "type:task",
       limit: 50,
     });
@@ -69,7 +69,12 @@ describe("listNextIssues", () => {
           { team: { id: { eq: "t-1" } } },
           { assignee: { id: { eq: "u-1" } } },
           { priority: { eq: 2 } },
-          { labels: { some: { id: { in: ["l-1", "l-2"] } } } },
+          { labels: { some: { name: { eqIgnoreCase: "bug" } } } },
+          {
+            labels: {
+              some: { id: { eq: "550e8400-e29b-41d4-a716-446655440000" } },
+            },
+          },
           { labels: { some: { name: { eq: "type:task" } } } },
         ],
       },

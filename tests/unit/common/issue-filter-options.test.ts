@@ -33,6 +33,7 @@ describe("normalizeIssueFilterOptions", () => {
       updatedBefore: "2025-09-30",
       hasBlockers: true,
       isBlocking: false,
+      labels: undefined,
       labelPatternFilters: undefined,
     });
   });
@@ -44,7 +45,7 @@ describe("normalizeIssueFilterOptions", () => {
       creator: "bob",
       project: "Backend",
       status: "Todo, In Progress",
-      label: "Bug,Critical",
+      label: ["Bug,Critical"],
       cycle: "Sprint 1",
       parent: "ENG-123",
       milestone: "v1.0",
@@ -64,6 +65,24 @@ describe("normalizeIssueFilterOptions", () => {
       milestone: "v1.0",
       project: "Backend",
     });
+    expect(result.directOptions.labels).toEqual(["Bug", "Critical"]);
+  });
+
+  it("accumulates repeated --label flags alongside the comma form", () => {
+    const result = normalizeIssueFilterOptions({
+      label: ["type:bug", "area:cli,area:api"],
+    });
+
+    expect(result.directOptions.labels).toEqual([
+      "type:bug",
+      "area:cli",
+      "area:api",
+    ]);
+    expect(result.searchReferences?.labelNames).toEqual([
+      "type:bug",
+      "area:cli",
+      "area:api",
+    ]);
   });
 
   it("uses a supplied default team when no team flag is present", () => {
@@ -103,9 +122,19 @@ describe("normalizeIssueFilterOptions", () => {
     ]);
   });
 
+  it("treats an empty --label as no label filter", () => {
+    const result = normalizeIssueFilterOptions({
+      label: [""],
+      labelPattern: "type:*",
+    });
+
+    expect(result.directOptions.labels).toBeUndefined();
+    expect(result.directOptions.labelPatternFilters).toHaveLength(1);
+  });
+
   it("rejects mutually exclusive exact and glob label filters", () => {
     expect(() =>
-      normalizeIssueFilterOptions({ label: "Bug", labelPattern: "type:*" }),
+      normalizeIssueFilterOptions({ label: ["Bug"], labelPattern: "type:*" }),
     ).toThrow(/cannot be combined with --label/);
   });
 
@@ -153,7 +182,7 @@ describe("normalizeIssueFilterOptions", () => {
 
   it.each([
     [{ team: "ENG", status: "Todo,,Done" }, "empty"],
-    [{ label: "bug, ,ux" }, "empty"],
+    [{ label: ["bug, ,ux"] }, "empty"],
     [{ dueBefore: "not-a-date" }, "--due-before"],
     [{ dueAfter: "2025-12-31", dueBefore: "2025-01-01" }, "due date"],
   ] as const)("rejects malformed input %#", (flags, message) => {

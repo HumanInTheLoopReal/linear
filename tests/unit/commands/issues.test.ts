@@ -78,6 +78,7 @@ vi.mock("../../../src/resolvers/project-resolver.js", () => ({
 }));
 
 vi.mock("../../../src/resolvers/label-resolver.js", () => ({
+  findMissingLabelNames: vi.fn().mockResolvedValue([]),
   resolveLabelIds: vi.fn().mockResolvedValue(["resolved-label-uuid"]),
   resolveLabelId: vi.fn().mockResolvedValue("resolved-label-uuid"),
 }));
@@ -492,6 +493,7 @@ import {
   resolveIssueEstimateContext,
   resolveIssueId,
 } from "../../../src/resolvers/issue-resolver.js";
+import { findMissingLabelNames } from "../../../src/resolvers/label-resolver.js";
 import { resolveProjectId } from "../../../src/resolvers/project-resolver.js";
 import { resolveStateIdByType } from "../../../src/resolvers/status-resolver.js";
 import {
@@ -1960,6 +1962,60 @@ describe("issues list/search filters", () => {
       nodes: Array<{ identifier: string }>;
     };
     expect(arg.nodes.map((n) => n.identifier)).toEqual(["EN-1"]);
+  });
+
+  it("requires every label across repeated and comma-separated --label flags", async () => {
+    const program = createProgram();
+    await program.parseAsync([
+      "node",
+      "test",
+      "issues",
+      "list",
+      "--all-teams",
+      "--label",
+      "type:bug",
+      "--label",
+      "area:cli,area:api",
+    ]);
+
+    expect(listIssues).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.anything(),
+      {
+        and: [
+          { labels: { some: { name: { eqIgnoreCase: "type:bug" } } } },
+          { labels: { some: { name: { eqIgnoreCase: "area:cli" } } } },
+          { labels: { some: { name: { eqIgnoreCase: "area:api" } } } },
+        ],
+      },
+      { includeArchived: undefined },
+    );
+  });
+
+  it("treats an unknown --label as an empty match with a stderr note", async () => {
+    vi.mocked(findMissingLabelNames).mockResolvedValueOnce(["nope"]);
+    const program = createProgram();
+    await program.parseAsync([
+      "node",
+      "test",
+      "issues",
+      "search",
+      "login",
+      "--all-teams",
+      "--label",
+      "nope",
+    ]);
+
+    expect(process.exit).not.toHaveBeenCalled();
+    expect(searchIssues).toHaveBeenCalledWith(
+      expect.anything(),
+      "login",
+      expect.anything(),
+      { and: [{ labels: { some: { name: { eqIgnoreCase: "nope" } } } }] },
+    );
+    expect(console.error).toHaveBeenCalledWith(
+      'Warning: label "nope" does not exist, so no issue matches --label nope',
+    );
   });
 
   it("rejects an empty --defer-after/--defer-before window", async () => {

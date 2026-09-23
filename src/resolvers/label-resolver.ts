@@ -59,6 +59,29 @@ export async function resolveLabelIds(
 }
 
 /**
+ * Label names or UUIDs that match no label anywhere in the workspace. A label
+ * filter still applies them, so the caller can explain an empty result
+ * instead of failing the read.
+ */
+export async function findMissingLabelNames(
+  client: LinearSdkClient,
+  namesOrIds: string[],
+): Promise<string[]> {
+  const found = await Promise.all(
+    namesOrIds.map(async (label) => {
+      const result = await client.sdk.issueLabels({
+        filter: isUuid(label)
+          ? { id: { eq: label } }
+          : { name: { eqIgnoreCase: label } },
+        first: 1,
+      });
+      return result.nodes.length > 0;
+    }),
+  );
+  return namesOrIds.filter((_, i) => !found[i]);
+}
+
+/**
  * Resolve label names / ids to ids, silently dropping names that don't
  * exist. Use for *negative* filters like `--exclude-label` where missing
  * labels are a no-op (nothing to exclude) rather than a usage error. The
