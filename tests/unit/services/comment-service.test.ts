@@ -4,7 +4,6 @@ import {
   createComment,
   deleteComment,
   listComments,
-  replyToComment,
   updateComment,
 } from "../../../src/services/comment-service.js";
 
@@ -172,54 +171,6 @@ describe("listComments", () => {
       first: 10,
       after: "cursor-xyz",
     });
-  });
-});
-
-describe("replyToComment", () => {
-  it("creates a reply with parentId", async () => {
-    const client = mockGqlClient({
-      commentCreate: {
-        success: true,
-        comment: {
-          id: "reply-1",
-          body: "This is a reply",
-          createdAt: "2025-01-15T12:00:00.000Z",
-          editedAt: null,
-          parentId: "comment-1",
-          user: MOCK_USER,
-        },
-      },
-    });
-
-    const result = await replyToComment(client, {
-      parentId: "comment-1",
-      body: "This is a reply",
-    });
-
-    expect(result).toEqual({
-      id: "reply-1",
-      body: "This is a reply",
-      createdAt: "2025-01-15T12:00:00.000Z",
-      editedAt: null,
-      parentId: "comment-1",
-      user: MOCK_USER,
-    });
-    expect(client.request).toHaveBeenCalledWith(expect.anything(), {
-      input: { parentId: "comment-1", body: "This is a reply" },
-    });
-  });
-
-  it("throws when reply creation fails", async () => {
-    const client = mockGqlClient({
-      commentCreate: {
-        success: false,
-        comment: null,
-      },
-    });
-
-    await expect(
-      replyToComment(client, { parentId: "comment-1", body: "reply" }),
-    ).rejects.toThrow("Failed to create reply");
   });
 });
 

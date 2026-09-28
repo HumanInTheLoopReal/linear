@@ -184,24 +184,43 @@ function assertExpectedDiscussionEntityKind(
   }
 }
 
+/**
+ * Linear answers an unknown comment ID with an "Entity not found" error rather
+ * than a null `comment`, so both are folded into null here.
+ */
+async function getDiscussionCommentContext(
+  client: GraphQLClient,
+  id: string,
+): Promise<DiscussionCommentContext | null> {
+  try {
+    const result = await client.request<GetDiscussionCommentContextQuery>(
+      GetDiscussionCommentContextDocument,
+      { id },
+    );
+    return result.comment ?? null;
+  } catch (error) {
+    if (error instanceof Error && error.message.includes("Entity not found")) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 async function assertDiscussionCommentExists(
   client: GraphQLClient,
   id: string,
   expectedEntityKind?: DiscussionEntityKind,
   label: "comment" | "reply" = "comment",
 ): Promise<DiscussionCommentContext> {
-  const result = await client.request<GetDiscussionCommentContextQuery>(
-    GetDiscussionCommentContextDocument,
-    { id },
-  );
+  const comment = await getDiscussionCommentContext(client, id);
 
-  if (!result.comment) {
+  if (!comment) {
     throw new Error(`Discussion comment ID "${id}" not found`);
   }
 
-  assertExpectedDiscussionEntityKind(result.comment, expectedEntityKind, label);
+  assertExpectedDiscussionEntityKind(comment, expectedEntityKind, label);
 
-  return result.comment;
+  return comment;
 }
 
 async function assertRootDiscussionThread(
@@ -209,28 +228,21 @@ async function assertRootDiscussionThread(
   threadId: string,
   expectedEntityKind?: DiscussionEntityKind,
 ): Promise<DiscussionThreadContext> {
-  const result = await client.request<GetDiscussionCommentContextQuery>(
-    GetDiscussionCommentContextDocument,
-    { id: threadId },
-  );
+  const comment = await getDiscussionCommentContext(client, threadId);
 
-  if (!result.comment) {
+  if (!comment) {
     throw new Error(`Discussion thread ID "${threadId}" not found`);
   }
 
-  if (result.comment.parentId) {
+  if (comment.parentId) {
     throw new Error(
-      `Discussion thread ID "${threadId}" must reference a root comment`,
+      `Discussion thread ID "${threadId}" must reference a root comment; it is a reply in thread "${comment.parentId}"`,
     );
   }
 
-  assertExpectedDiscussionEntityKind(
-    result.comment,
-    expectedEntityKind,
-    "thread",
-  );
+  assertExpectedDiscussionEntityKind(comment, expectedEntityKind, "thread");
 
-  return result.comment;
+  return comment;
 }
 
 async function assertReplyComment(
@@ -921,19 +933,24 @@ export async function replyToDiscussion(
     input.entityKind,
   );
 
+  // Linear does not infer the parent entity from `parentId`: every reply must
+  // also name the thread's entity, or it is rejected with "Exactly one of …
+  // must be defined".
+  const entity = getDiscussionThreadEntity(thread);
+  const entityInput = {
+    issue: { issueId: entity.id },
+    project: { projectId: entity.id },
+    initiative: { initiativeId: entity.id },
+    document: { documentContentId: entity.id },
+  }[entity.kind];
+
   const result = await client.request<StartDiscussionMutation>(
     StartDiscussionDocument,
     {
       input: {
         parentId: input.threadId,
         body: input.body,
-        // A document reply must name its comment target explicitly. Linear
-        // infers the parent entity from `parentId` alone for issue / project /
-        // initiative threads, but rejects a document reply that does not carry
-        // `documentContentId` ("Exactly one of … must be defined").
-        ...(thread.documentContentId
-          ? { documentContentId: thread.documentContentId }
-          : {}),
+        ...entityInput,
       },
     },
   );

@@ -576,16 +576,23 @@ describe("document discussion threads", () => {
     });
   });
 
-  it("leaves an issue reply's input untouched (parent entity is inferred)", async () => {
+  // Linear does not infer the thread's entity from parentId: a reply that
+  // carries only parentId is rejected with "Exactly one of ... must be defined".
+  it.each([
+    ["issue", { issueId: "entity-1" }],
+    ["project", { projectId: "entity-1" }],
+    ["initiative", { initiativeId: "entity-1" }],
+  ] as const)("names the thread's %s on the reply input", async (entityKind, entityInput) => {
     const client = createClientMock();
     vi.mocked(client.request)
       .mockResolvedValueOnce({
         comment: {
           ...comment("root-1"),
-          issueId: "issue-1",
+          issueId: null,
           projectId: null,
           initiativeId: null,
           documentContentId: null,
+          ...entityInput,
         },
       })
       .mockResolvedValueOnce({
@@ -598,11 +605,11 @@ describe("document discussion threads", () => {
     await replyToDiscussion(client, {
       threadId: "root-1",
       body: "ack",
-      entityKind: "issue",
+      entityKind,
     });
 
     expect(client.request).toHaveBeenLastCalledWith(expect.anything(), {
-      input: { parentId: "root-1", body: "ack" },
+      input: { parentId: "root-1", body: "ack", ...entityInput },
     });
   });
 
@@ -866,6 +873,20 @@ describe("replyToDiscussion", () => {
     ).rejects.toThrow('Discussion thread ID "missing-thread" not found');
   });
 
+  it("reports a clear not-found error when Linear rejects the thread id", async () => {
+    const client = createClientMock();
+    vi.mocked(client.request).mockRejectedValueOnce(
+      new Error(
+        "GraphQL request failed: Entity not found: Comment - Could not find referenced Comment.",
+      ),
+    );
+
+    await expect(
+      replyToDiscussion(client, { threadId: "missing-thread", body: "hi" }),
+    ).rejects.toThrow('Discussion thread ID "missing-thread" not found');
+    expect(client.request).toHaveBeenCalledTimes(1);
+  });
+
   it("rejects non-root parent thread id", async () => {
     const client = createClientMock();
     vi.mocked(client.request).mockResolvedValueOnce({
@@ -880,7 +901,7 @@ describe("replyToDiscussion", () => {
     await expect(
       replyToDiscussion(client, { threadId: "reply-2", body: "nested reply" }),
     ).rejects.toThrow(
-      'Discussion thread ID "reply-2" must reference a root comment',
+      'Discussion thread ID "reply-2" must reference a root comment; it is a reply in thread "root-1"',
     );
 
     expect(client.request).toHaveBeenCalledTimes(1);
@@ -917,7 +938,9 @@ describe("replyToDiscussion", () => {
   it("creates a reply for root thread", async () => {
     const client = createClientMock();
     vi.mocked(client.request)
-      .mockResolvedValueOnce({ comment: comment("root-1") })
+      .mockResolvedValueOnce({
+        comment: { ...comment("root-1"), issueId: "issue-1" },
+      })
       .mockResolvedValueOnce({
         commentCreate: {
           success: true,

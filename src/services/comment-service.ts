@@ -78,22 +78,6 @@ export async function listComments(
   };
 }
 
-export async function replyToComment(
-  client: GraphQLClient,
-  input: { parentId: string; body: string },
-): Promise<CreatedComment> {
-  const result = await client.request<CreateCommentMutation>(
-    CreateCommentDocument,
-    { input: { parentId: input.parentId, body: input.body } },
-  );
-
-  if (!result.commentCreate.success || !result.commentCreate.comment) {
-    throw new Error("Failed to create reply");
-  }
-
-  return result.commentCreate.comment;
-}
-
 export async function deleteComment(
   client: GraphQLClient,
   id: string,
