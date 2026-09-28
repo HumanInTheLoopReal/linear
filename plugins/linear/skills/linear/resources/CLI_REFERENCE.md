@@ -110,7 +110,7 @@ linear info --json
 
 # Example output (the actual envelope — no "ok" wrapper):
 # {
-#   "cli_version": "2026.9.1",
+#   "cli_version": "2026.9.2",
 #   "platform": { "key": "linear" },
 #   "workspace": { "id": "…", "name": "…", "url_key": "…" },
 #   "viewer":    { "id": "…", "name": "…", "email": "you@example.com" },

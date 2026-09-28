@@ -1,5 +1,11 @@
 # Changelog
 
+## [2026.9.2](https://github.com/HumanInTheLoopReal/linear/compare/v2026.9.1...v2026.9.2) (2026-09-28)
+
+### Bug Fixes
+
+* name the thread's entity when replying to a discussion ([f289ecb](https://github.com/HumanInTheLoopReal/linear/commit/f289ecb7be7d9cae9132ffcc28b472420e9e66aa))
+
 ## [2026.9.1](https://github.com/HumanInTheLoopReal/linear/compare/v2026.9.0...v2026.9.1) (2026-09-23)
 
 ### Bug Fixes
