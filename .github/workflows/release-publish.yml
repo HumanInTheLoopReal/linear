@@ -65,7 +65,7 @@ jobs:
           echo "Releasing from branch: $branch"
 
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: ${{ steps.target.outputs.branch }}
@@ -98,7 +98,7 @@ jobs:
           git config user.email "${{ steps.app-bot.outputs.email }}"
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: npm
